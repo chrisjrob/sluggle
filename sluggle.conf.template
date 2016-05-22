@@ -23,3 +23,6 @@ invites     0
 # Bing
 url         "https://api.datamarket.azure.com/Bing/SearchWeb/v1/Web?$top=1&$format=JSON&Query="
 key         "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+# Wolfram
+wolfram_appid XXXXXX-XXXXXXXXXX

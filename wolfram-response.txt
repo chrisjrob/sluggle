@@ -1,0 +1,206 @@
+Datatypes: AdministrativeDivision,Airport,City,Country,Mountain,Ocean,Waterfall
+Timing: 7.045
+Parsetiming: 0.098
+Timedout: Data,Character
+
+
+
+Numpods: 13
+
+
+Pod title: Input interpretation
+Scanner: Identity
+Position: 100
+Numsubpods: 1
+  Subpod
+    plaintext: Hønefoss, Buskerud, Norway
+    img: <img height='18' src='http://www5a.wolframalpha.com/Calculate/MSP/MSP26322124h1eb68e5a1d300005f9ea2ga8d05485d?MSPStoreType=image/gif&s=54' title='Hønefoss, Buskerud, Norway' width='192' alt='Hønefoss, Buskerud, Norway'/>
+
+
+Pod title: Population
+Scanner: Data
+Position: 200
+Numsubpods: 1
+  Subpod
+    plaintext: city population | 13930 people  (country rank: 37th)  (2007 estimate)
+    img: <img src='http://www5a.wolframalpha.com/Calculate/MSP/MSP26332124h1eb68e5a1d3000065i72g45456ia16b?MSPStoreType=image/gif&s=54' title='city population | 13930 people  (country rank: 37th)  (2007 estimate)' width='448' alt='city population | 13930 people  (country rank: 37th)  (2007 estimate)' height='36'/>
+  States
+    name: Show history
+
+
+Pod title: Location
+Scanner: Data
+Position: 300
+Numsubpods: 1
+  Subpod
+    plaintext: HASH(0x9c2a0b4)
+    img: <img title='' src='http://www5a.wolframalpha.com/Calculate/MSP/MSP26342124h1eb68e5a1d300001he2gb9bh0i7hfbb?MSPStoreType=image/gif&s=54' alt='' width='328' height='314'/>
+  States
+    name: World map
+    name: Show coordinates
+  Infos
+    Info
+      link: http://maps.google.com?ie=UTF8&z=12&t=k&ll=60.19%2C10.23&q=60.19%20N%2C%2010.23%20E
+        text: Satellite image
+
+
+Pod title: Local map
+Scanner: Data
+Position: 400
+Numsubpods: 1
+  Subpod
+    plaintext: HASH(0x9c28cac)
+    img: <img height='278' title='' src='http://www5a.wolframalpha.com/Calculate/MSP/MSP26352124h1eb68e5a1d300000dha2e96c1d93ba8?MSPStoreType=image/gif&s=54' alt='' width='550'/>
+  States
+    name: Metric
+    statelist: 7 miles across
+      name: 3 miles across
+      name: 7 miles across
+      name: 10 miles across
+      name: 30 miles across
+      name: 50 miles across
+      name: 110 miles across
+      name: 210 miles across
+      name: 420 miles across
+      name: 840 miles across
+      name: 1700 miles across
+      name: 3200 miles across
+      name: 4900 miles across
+      name: 9600 miles across
+  Infos
+    Info
+      link: http://maps.google.com?ie=UTF8&z=12&t=k&ll=60.19%2C10.23&q=60.19%20N%2C%2010.23%20E
+        text: Satellite image
+
+
+Pod title: Administrative regions
+Scanner: Data
+Position: 500
+Numsubpods: 1
+  Subpod
+    plaintext: region | Buskerud
+country | Norway
+    img: <img width='162' alt='region | Buskerud country | Norway' src='http://www5a.wolframalpha.com/Calculate/MSP/MSP26362124h1eb68e5a1d300000hie8d09d0g88h25?MSPStoreType=image/gif&s=54' title='region | Buskerud country | Norway' height='68'/>
+
+
+Pod title: Current local time
+Scanner: Data
+Position: 600
+Numsubpods: 1
+  Subpod
+    plaintext: 1:42 pm CEST  |  Sunday, May 22, 2016
+    img: <img title='1:42 pm CEST  |  Sunday, May 22, 2016' src='http://www5a.wolframalpha.com/Calculate/MSP/MSP26372124h1eb68e5a1d300004026fe03ibcc473d?MSPStoreType=image/gif&s=54' alt='1:42 pm CEST  |  Sunday, May 22, 2016' width='267' height='18'/>
+
+
+Pod title: Current weather
+Scanner: Data
+Position: 700
+Numsubpods: 1
+  Subpod
+    plaintext: 13 °C  (wind chill: 11 °C)  |  relative humidity: 94%  |  wind: 20 mph  |  overcast
+    img: <img src='http://www5a.wolframalpha.com/Calculate/MSP/MSP26382124h1eb68e5a1d300004e791382h842i4b1?MSPStoreType=image/gif&s=54' title='13 °C  (wind chill: 11 °C)  |  relative humidity: 94%  |  wind: 20 mph  |  overcast' width='526' alt='13 °C  (wind chill: 11 °C)  |  relative humidity: 94%  |  wind: 20 mph  |  overcast' height='22'/>
+  States
+    name: Show history
+    statelist: British units
+      name: British units
+      name: Metric units
+      name: Non-metric units
+
+
+Pod title: Nearby cities
+Scanner: Data
+Position: 800
+Numsubpods: 1
+  Subpod
+    plaintext: Oslo | 26 miles southeast | 623966 people
+Drammen, Buskerud | 30 miles south | 65473 people
+Fredrikstad, Østfold | 72 miles south-southeast | 76807 people
+(straight-line distances between city centers)
+    img: <img height='109' src='http://www5a.wolframalpha.com/Calculate/MSP/MSP26392124h1eb68e5a1d3000040ac054fibc9a558?MSPStoreType=image/gif&s=54' title='Oslo | 26 miles southeast | 623966 people Drammen, Buskerud | 30 miles south | 65473 people Fredrikstad, Østfold | 72 miles south-southeast | 76807 people (straight-line distances between city centers)' width='460' alt='Oslo | 26 miles southeast | 623966 people Drammen, Buskerud | 30 miles south | 65473 people Fredrikstad, Østfold | 72 miles south-southeast | 76807 people (straight-line distances between city centers)'/>
+  States
+    name: Show metric
+    name: More
+
+
+Pod title: Nearby airport
+Scanner: Data
+Position: 900
+Numsubpods: 1
+  Subpod
+    plaintext: Oslo Airport (Gardermoen) | 30 miles east
+(straight-line distances between city center and airport)
+    img: <img title='Oslo Airport (Gardermoen) | 30 miles east (straight-line distances between city center and airport)' src='http://www5a.wolframalpha.com/Calculate/MSP/MSP26402124h1eb68e5a1d3000055944ec6344809ag?MSPStoreType=image/gif&s=54' alt='Oslo Airport (Gardermoen) | 30 miles east (straight-line distances between city center and airport)' width='305' height='53'/>
+  States
+    name: Show metric
+    name: More
+
+
+Pod title: Geographic properties
+Scanner: Data
+Position: 1000
+Numsubpods: 1
+  Subpod
+    plaintext: elevation | 394 ft
+    img: <img height='36' width='142' alt='elevation | 394 ft' src='http://www5a.wolframalpha.com/Calculate/MSP/MSP26412124h1eb68e5a1d300003f864fh8eh1f3dh4?MSPStoreType=image/gif&s=54' title='elevation | 394 ft'/>
+  States
+    name: Show metric
+  Infos
+    Info
+      units img: <img width='71' src='http://www5a.wolframalpha.com/Calculate/MSP/MSP26422124h1eb68e5a1d300004gide354h3agh123?MSPStoreType=image/gif&s=54' height='26'/>
+      unit: ft
+        long: feet
+
+
+Pod title: Nearby features
+Scanner: Data
+Position: 1100
+Numsubpods: 1
+  Subpod
+    plaintext: mountain | Gaustatoppen (6178 feet) | 59 miles west-southwest
+mountain | Gausta (6178 feet) | 60 miles west-southwest
+mountain | Store Knutsholstinden (7677 feet) | 60 miles west-northwest
+waterfall | Rjukan Falls (781 feet) | 65 miles west-southwest
+(straight-line distances between city center and feature coordinates)
+    img: <img alt='mountain | Gaustatoppen (6178 feet) | 59 miles west-southwest mountain | Gausta (6178 feet) | 60 miles west-southwest mountain | Store Knutsholstinden (7677 feet) | 60 miles west-northwest waterfall | Rjukan Falls (781 feet) | 65 miles west-southwest (straight-line distances between city center and feature coordinates)' width='507' title='mountain | Gaustatoppen (6178 feet) | 59 miles west-southwest mountain | Gausta (6178 feet) | 60 miles west-southwest mountain | Store Knutsholstinden (7677 feet) | 60 miles west-northwest waterfall | Rjukan Falls (781 feet) | 65 miles west-southwest (straight-line distances between city center and feature coordinates)' src='http://www5a.wolframalpha.com/Calculate/MSP/MSP26432124h1eb68e5a1d30000172b50912060g93i?MSPStoreType=image/gif&s=54' height='137'/>
+  States
+    name: Show metric
+    name: More
+
+
+Pod title: Nearest sea
+Scanner: Data
+Position: 1200
+Numsubpods: 1
+  Subpod
+    plaintext: Skagerrak (24 miles south-southeast) 
+(straight-line distance between city center and shore)
+    img: <img alt='Skagerrak (24 miles south-southeast)  (straight-line distance between city center and shore)' width='290' title='Skagerrak (24 miles south-southeast)  (straight-line distance between city center and shore)' src='http://www5a.wolframalpha.com/Calculate/MSP/MSP26442124h1eb68e5a1d300003gb4884346e6b501?MSPStoreType=image/gif&s=54' height='36'/>
+  States
+    name: Show metric
+
+
+Pod title: Notable people born in Hønefoss
+Scanner: Data
+Position: 1300
+Numsubpods: 1
+  Subpod
+    plaintext: Anders Jacobsen  (athlete)  (1985)
+Havard Bokko  (athlete)  (1987)
+Fagerli Christoffer Rukke  (athlete)  (1988)
+    img: <img width='276' alt='Anders Jacobsen  (athlete)  (1985) Havard Bokko  (athlete)  (1987) Fagerli Christoffer Rukke  (athlete)  (1988)' src='http://www5a.wolframalpha.com/Calculate/MSP/MSP26452124h1eb68e5a1d300001dfce4cchefe151h?MSPStoreType=image/gif&s=54' title='Anders Jacobsen  (athlete)  (1985) Havard Bokko  (athlete)  (1987) Fagerli Christoffer Rukke  (athlete)  (1988)' height='57'/>
+  States
+    name: Show dates
+    name: Show deaths
+
+
+Sources
+  url: http://www.wolframalpha.com/sources/CityDataSourceInformationNotes.html
+  text: City data
+  url: http://www.wolframalpha.com/sources/OpenStreetMapSourceInformationNotes.html
+  text: Open street map
+  url: http://www.wolframalpha.com/sources/PeopleDataSourceInformationNotes.html
+  text: People data
+  url: http://www.wolframalpha.com/sources/USCensusDataSourceInformationNotes.html
+  text: US census data
+  url: http://www.wolframalpha.com/sources/WeatherDataSourceInformationNotes.html
+  text: Weather data
