@@ -289,7 +289,60 @@ sub irc_botcmd_wolfram {
 sub wolfram {
     my $request = shift;
 
-    my $response = 'The wolfram command has not yet been completed';
+    use Net::WolframAlpha; 
+    use Text::Unaccent::PurePerl;
+
+    # Instantiate WA object with your appid.
+    my $wa = Net::WolframAlpha->new (
+        appid => $CONF->param('wolfram_appid')
+    );
+
+    # Send any inputs paramters in input hash (unescaped).
+    my $query = $wa->query(
+        'input' =>  unac_string('utf-8',$request),
+        'scantimeout' => 3,
+    );
+
+    my $response;
+
+    if ($query->success) {
+
+        # Interpretation
+        my $pod                 = $query->pods->[0];
+        my $subpod              = $pod->subpods->[0];
+        my $search_plaintext    = $subpod->plaintext;
+
+        # Results
+        $pod                    = $query->pods->[1];
+        my $result_title        = $pod->title;
+        $subpod                 = $pod->subpods->[0];
+        my $result_subtitle     = $subpod->title;
+        my $result_plaintext    = $subpod->plaintext;
+
+        $response = $search_plaintext . ': '
+                    . $result_title . ' '
+                    . $result_subtitle . ' '
+                    . $result_plaintext;
+
+    # No success, but no error either.
+    } elsif (!$query->error) {
+        $response =  "No results.";
+
+    # Error contacting WA.
+    } elsif ($wa->error) {
+        $response = "Net::WolframAlpha error: "
+                    . $wa->errmsg;
+
+    # Error returned by WA.    
+    } elsif ($query->error) {
+        $response = "WA error "
+                    . $query->error->code
+                    . ": "
+                    . $query->error->msg;
+
+    }
+
+    $response =~ s/\s{2,}/ /g;
 
     return $response;
 }
