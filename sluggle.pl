@@ -184,7 +184,7 @@ sub irc_public {
 
     # Ignore sluggle: commands - handled by botcommand plugin
     my $whoami = $CONF->param('nickname');
-    if ($what =~ /^(?:!|$whoami:)\s*(?:find|wot|op|wolfram)/i) {
+    if ($what =~ /^(?:!|$whoami:)\s*(?:find|wot|op|wolfram|help)/i) {
         # Do nothing
 
     # Default find command
