@@ -79,7 +79,7 @@ sub _start {
                 find        => 'A simple Internet search, takes one argument - a string to search.',
                 wot         => 'Looks up WoT Web of Trust reputation, takes one argument - an http web address.',
                 op          => 'Currently has no other purpose than to tell you if you are an op or not!',
-                wolfram     => 'This function is currently not working',
+                wolfram     => 'A simple Wolfram Alpha search, takes one argument - a string to search.',
             },
             In_channels     => 1,
             In_private      => $CONF->param('private'),
