@@ -319,17 +319,29 @@ sub wolfram {
         my $subpod              = $pod->subpods->[0];
         my $search_plaintext    = superchomp( $subpod->plaintext );
 
+        if (defined $search_plaintext) {
+            $response = "Interpreted as $search_plaintext ";
+        } else {
+            $response = "Unable to interpret request ";
+        }
+
+        my ($result_title, $result_subtitle, $result_plaintext);
+
         # Results
         $pod                    = $query->pods->[1];
-        my $result_title        = $pod->title;
-        $subpod                 = $pod->subpods->[0];
-        my $result_subtitle     = $subpod->title;
-        my $result_plaintext    = superchomp( $subpod->plaintext );
 
-        $response = "Interpreted as $search_plaintext. "
-                    . $result_title . ' '
-                    . $result_subtitle . ' '
+        if (defined $pod) {
+            $result_title        = $pod->title;
+            $subpod                 = $pod->subpods->[0];
+            $response .= $result_title . ' ';
+        }
+
+        if (defined $subpod) {
+            $result_subtitle     = $subpod->title;
+            $result_plaintext    = superchomp( $subpod->plaintext );
+            $response .= $result_subtitle . ' '
                     . $result_plaintext;
+        }
 
     # No success, but no error either.
     } elsif (!$query->error) {
