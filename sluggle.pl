@@ -328,7 +328,7 @@ sub wolfram {
     } elsif (!$query->error) {
         if ($query->didyoumeans->count) {
             my $didyoumean = $query->didyoumeans->didyoumean->[0];
-            $response = 'Did you mean: ' . $didyoumean->text->{content} . '?';
+            $response = 'Did you mean: ' . $didyoumean->text->{content};
         } else {
             $response =  "No results.";
         }
