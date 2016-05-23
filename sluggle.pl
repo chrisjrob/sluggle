@@ -286,6 +286,13 @@ sub irc_botcmd_wolfram {
 
 }
 
+sub superchomp {
+    my $string = shift;
+    return if (not defined $string);
+    $string =~ s/[\r\n]//g;
+    return $string;
+}
+
 sub wolfram {
     my $request = shift;
 
@@ -310,16 +317,16 @@ sub wolfram {
         # Interpretation
         my $pod                 = $query->pods->[0];
         my $subpod              = $pod->subpods->[0];
-        my $search_plaintext    = $subpod->plaintext;
+        my $search_plaintext    = superchomp( $subpod->plaintext );
 
         # Results
         $pod                    = $query->pods->[1];
         my $result_title        = $pod->title;
         $subpod                 = $pod->subpods->[0];
         my $result_subtitle     = $subpod->title;
-        my $result_plaintext    = $subpod->plaintext;
+        my $result_plaintext    = superchomp( $subpod->plaintext );
 
-        $response = $search_plaintext . ': '
+        $response = "Interpreted as $search_plaintext. "
                     . $result_title . ' '
                     . $result_subtitle . ' '
                     . $result_plaintext;
