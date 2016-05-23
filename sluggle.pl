@@ -326,7 +326,12 @@ sub wolfram {
 
     # No success, but no error either.
     } elsif (!$query->error) {
-        $response =  "No results.";
+        if ($query->didyoumeans->count) {
+            my $didyoumean = $query->didyoumeans->didyoumean->[0];
+            $response = 'Did you mean: ' . $didyoumean->text->{content} . '?';
+        } else {
+            $response =  "No results.";
+        }
 
     # Error contacting WA.
     } elsif ($wa->error) {
