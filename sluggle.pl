@@ -188,7 +188,7 @@ sub irc_public {
         # Do nothing
 
     # Default find command
-    } elsif ( (my $request) = $what =~ /^(?:!|$whoami[:,])\s*(.+)$/i) {
+    } elsif ( (my $request) = $what =~ /^(?:$whoami[:,])\s*(.+)$/i) {
         my $response = find($request);
         $irc->yield( privmsg => $channel => "$nick: " . $response);
 

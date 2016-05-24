@@ -8,12 +8,12 @@ use Text::Unaccent::PurePerl;
 
 # Instantiate WA object with your appid.
 my $wa = Net::WolframAlpha->new (
-    appid => '',
+    appid => 'XXXXXX-XXXXXXXXXX',
 );
 
 # Send any inputs paramters in input hash (unescaped).
 my $query = $wa->query(
-    'input' =>  unac_string('utf-8','Hønefoss'),
+    'input' =>  unac_string('utf-8','average salary of IT professionals in Surrey'),
     'scantimeout' => 3,
 #    'format' => 'sound',
 #    'format' => 'html',
@@ -147,9 +147,12 @@ if ($query->success) {
 } elsif (!$query->error) {
     print "No results.\n";
 
+    # use Data::Dumper;
+
     if ($query->didyoumeans->count) {
 	foreach my $didyoumean (@{$query->didyoumeans->didyoumean}) {
-	    print "  Did you mean: ", $didyoumean->text, "\n"
+	    print "  Did you mean: ", $didyoumean->text->{content}, "\n";
+            # print Dumper($didyoumean->text);
 	}
     }
 
