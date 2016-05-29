@@ -30,7 +30,7 @@ Sluggle is a fairly typical POE::Component::IRC script.
 Sluggle is currently designed to work with the following services:
 
  * Bing Search
- * Wolfram
+ * Wolfram Alpha
  * Web of Trust (WoT)
  * TinyURL web shortener 
 
@@ -38,7 +38,7 @@ Sluggle is currently designed to work with the following services:
 
 Configuration is done via config files, which must be unique for each IRC server to which you will be connecting.
 
-Both Bing and Wolfram require API keys, which should be included in the config file.
+Both Bing and Wolfram Alpha require API keys, which should be included in the config file.
 
 When running sluggle, it takes the config file as argument, enabling you to run the bot multiple times for different IRC servers. 
 Each session can work for multiple channels inside the given server.
