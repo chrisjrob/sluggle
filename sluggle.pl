@@ -58,6 +58,8 @@ POE::Session->create(
             irc_botcmd_wot
             irc_botcmd_op
             irc_botcmd_wolfram
+            irc_botcmd_addbot
+            irc_botcmd_delbot
             irc_public
         ) ],
     ],
@@ -78,8 +80,10 @@ sub _start {
             Commands => {
                 find        => 'A simple Internet search, takes one argument - a string to search.',
                 wot         => 'Looks up WoT Web of Trust reputation, takes one argument - an http web address.',
-                op          => 'Currently has no other purpose than to tell you if you are an op or not!',
                 wolfram     => 'A simple Wolfram Alpha search, takes one argument - a string to search.',
+                op          => 'Currently has no other purpose than to tell you if you are an op or not!',
+                addbot      => 'Enables an op to add a nick to ignore - takes a nick as an argument',
+                delbot      => 'Enables an op to stop a nick being ignored - takes a nick as an argument',
             },
             In_channels     => 1,
             In_private      => $CONF->param('private'),
@@ -184,7 +188,7 @@ sub irc_public {
 
     # Ignore sluggle: commands - handled by botcommand plugin
     my $whoami = $CONF->param('nickname');
-    if ($what =~ /^(?:!|$whoami:)\s*(?:find|wot|op|wolfram|help)/i) {
+    if ($what =~ /^(?:!|$whoami:)\s*(?:find|wot|op|wolfram|addbot|delbot|help)/i) {
         # Do nothing - these requests being handled by irc_command_*
 
     # Default find command
@@ -396,6 +400,87 @@ sub irc_botcmd_op {
 
     return;
 
+}
+
+sub irc_botcmd_delbot {
+    my $nick = ( split /!/, $_[ARG0] )[0];
+
+    my ($channel, $request) = @_[ ARG1, ARG2 ];
+
+    if ( check_if_op($channel, $nick) ) {
+        delbot($request);
+        $irc->yield( privmsg => $channel => "$nick: Removed $request from bot list");
+    } else {
+        $irc->yield( privmsg => $channel => "$nick: Only channel operators may do that!");
+    } 
+
+    return;
+
+}
+
+sub irc_botcmd_addbot {
+    my $nick = ( split /!/, $_[ARG0] )[0];
+
+    my ($channel, $request) = @_[ ARG1, ARG2 ];
+
+    if ( check_if_op($channel, $nick) ) {
+        addbot($request);
+        $irc->yield( privmsg => $channel => "$nick: Added $request to bot list");
+    } else {
+        $irc->yield( privmsg => $channel => "$nick: Only channel operators may do that!");
+    } 
+
+    return;
+
+}
+
+sub filter_unique {
+    my @array = @_;
+
+    my %unique;
+    foreach my $element (@array) {
+        $unique{$element} = 1;
+    }
+
+    my @unique = sort keys %unique;
+
+    return @unique;
+}
+
+sub addbot {
+    my $request = shift;
+
+    # Adds bot to the list of nicks to be ignored
+    # This is intended to prevent bot wars
+    # but equally could be used to stop a particular nick
+    # from using the bot
+
+    my @bots = $CONF->param('bots');
+
+    my @unique = filter_unique(@bots, $request);
+
+    $CONF->param('bots', \@unique);
+    $CONF->save();
+
+    return;
+}
+
+sub delbot {
+    my $request = shift;
+
+    # Removes bot from list of nicks to be ignored
+    # This is intended to prevent bot wars
+    # but equally could be used to stop a particular nick
+    # from using the bot
+
+    my @bots = $CONF->param('bots');
+
+    my @newbots = grep { $_ ne $request } @bots;
+
+    $CONF->param('bots', \@newbots);
+    $CONF->save();
+
+    return;
 }
 
 sub irc_botcmd_find {
