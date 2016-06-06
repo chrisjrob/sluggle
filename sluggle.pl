@@ -408,8 +408,8 @@ sub irc_botcmd_delbot {
     my ($channel, $request) = @_[ ARG1, ARG2 ];
 
     if ( check_if_op($channel, $nick) ) {
-        delbot($request);
-        $irc->yield( privmsg => $channel => "$nick: Removed $request from bot list");
+        my $bots = delbot($request);
+        $irc->yield( privmsg => $channel => "$nick: Bots - $bots");
     } else {
         $irc->yield( privmsg => $channel => "$nick: Only channel operators may do that!");
     } 
@@ -424,8 +424,8 @@ sub irc_botcmd_addbot {
     my ($channel, $request) = @_[ ARG1, ARG2 ];
 
     if ( check_if_op($channel, $nick) ) {
-        addbot($request);
-        $irc->yield( privmsg => $channel => "$nick: Added $request to bot list");
+        my $bots = addbot($request);
+        $irc->yield( privmsg => $channel => "$nick: Bots - $bots");
     } else {
         $irc->yield( privmsg => $channel => "$nick: Only channel operators may do that!");
     } 
@@ -462,7 +462,9 @@ sub addbot {
     $CONF->param('bots', \@unique);
     $CONF->save();
 
-    return;
+    my $bots = join(', ', @unique);
+
+    return $bots;
 }
 
 sub delbot {
@@ -480,7 +482,9 @@ sub delbot {
     $CONF->param('bots', \@newbots);
     $CONF->save();
 
-    return;
+    my $bots = join(', ', @newbots);
+
+    return $bots;
 }
 
 sub irc_botcmd_find {
