@@ -43,7 +43,7 @@ The following IRC commands exist for configuration:
 
 The ignore command enables existing bots (or nicks) to be ignored. 
 This is a sensible precaution against bot wars.
-Run without arguments will show a list of bots currently ignored.
+Run without arguments to show a list of bots currently ignored.
 
 The op command simply responds depending on whether or not you are a channel op, it currently has no other purpose.
 
