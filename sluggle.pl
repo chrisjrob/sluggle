@@ -442,7 +442,7 @@ sub check_for_server_ip {
 sub find {
     my $request = shift;
 
-    my ($url, $title, $shorten, $wot);
+    my ($url, $title, $shorten, $wot, $error);
 
     # Web address search
     if ($request =~ /^https?:\/\//i) {
@@ -461,13 +461,17 @@ sub find {
         my $response = search($request);
         $url     = $response->{'Url'};
         $title   = $response->{'Title'};
+        $error   = $response->{'Error'};
         $shorten = $url; # Don't shorten URL on plain web search
     }
 
-    if (! defined $url) {
-        return "There were no search results!";
+    unless (defined $url) {
+        if (defined $error) {
+            return "There were no search results - $error";
+        } else {
+            return "There were no search results!";
+        }
     }
-
 
     my @elements;
     if (defined $shorten) {
@@ -810,7 +814,20 @@ sub search {
 #   }',
 
     use JSON;
-    my $ref = JSON::decode_json( $response->{'_content'} );
+
+    my $ref;
+    eval { $ref = JSON::decode_json( $response->{'_content'} ); };
+
+    if ( $@ ) {
+        warn "\n\n-------------- DEBUG ------------------\n";
+        warn "Bing has returned a malformed JSON response\n";
+        warn "Query: $query\n";
+        warn "Response: $@\n";
+
+        $response->{'Error'} = "Bing returned $@";
+        return $response;
+    }
+
     # warn Dumper( $ref );
 
 # JSON:
