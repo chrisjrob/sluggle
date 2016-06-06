@@ -407,14 +407,10 @@ sub irc_botcmd_ignore {
 
     my ($action, $bot) = split(/\s+/, $request);
 
-    unless ( check_if_op($channel, $nick) ) {
+    unless ( ( check_if_op($channel, $nick) ) or ($nick eq $bot) ) {
         $irc->yield( privmsg => $channel => "$nick: Only channel operators may do that!");
         return;
     }
-
-    warn "\n\n-------------- debug ----------------\n";
-    warn "Action: $action";
-    warn "Bot: $bot";
 
     my $bots;
     if ($action =~ /^add$/i) {
