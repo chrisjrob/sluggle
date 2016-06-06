@@ -185,15 +185,27 @@ sub irc_public {
     # Ignore sluggle: commands - handled by botcommand plugin
     my $whoami = $CONF->param('nickname');
     if ($what =~ /^(?:!|$whoami:)\s*(?:find|wot|op|wolfram|help)/i) {
-        # Do nothing
+        # Do nothing - these requests being handled by irc_command_*
 
     # Default find command
     } elsif ( (my $request) = $what =~ /^(?:$whoami[:,])\s*(.+)$/i) {
-        my $response = find($request);
-        $irc->yield( privmsg => $channel => "$nick: " . $response);
+
+        # If there are URLs in the search - use them
+        if ( (my @requests) = $what =~ /\b(https?:\/\/[^ ]+)\b/g ) {
+            foreach my $request (@requests) {
+                my $response = find($request);
+                $irc->yield( privmsg => $channel => "$nick: " . $response);
+            }
+
+        # Otherwise search the whole string
+        } else {
+            my $response = find($request);
+            $irc->yield( privmsg => $channel => "$nick: " . $response);
+        }
 
     # Shorten links and return title
     } elsif ( (my @requests) = $what =~ /\b(https?:\/\/[^ ]+)\b/g ) {
+
         foreach my $request (@requests) {
             my $response = find($request);
             $irc->yield( privmsg => $channel => "$nick: " . $response);
