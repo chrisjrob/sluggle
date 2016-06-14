@@ -830,7 +830,7 @@ sub get_data {
     $ua->timeout(20);
     $ua->protocols_allowed( [ 'http', 'https'] );
     $ua->max_size(1024 * 1024 * 8);
-    $ua->agent('Mozilla/5.0');
+    $ua->agent('sluggle/0.1.1 https://github.com/chrisjrob/sluggle');
     $ua->env_proxy;
 
     my $response = $ua->get($query);
