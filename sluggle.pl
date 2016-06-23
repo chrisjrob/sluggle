@@ -25,8 +25,9 @@ use POE;
 use POE::Component::IRC;
 use POE::Component::IRC::State;
 use POE::Component::IRC::Plugin::BotCommand;
+use POE::Component::IRC::Plugin::Connector;
 
-use vars qw( $CONF );
+use vars qw( $CONF $LAG );
 use Config::Simple;
 
 if ( (defined $ARGV[0]) and (-r $ARGV[0]) ) {
@@ -35,6 +36,8 @@ if ( (defined $ARGV[0]) and (-r $ARGV[0]) ) {
     print "USAGE: sluggle.pl sluggle.conf\n";
     exit;
 }
+
+$LAG = 60;
 
 my @channels = $CONF->param('channels');
 
@@ -51,6 +54,7 @@ POE::Session->create(
         main => [ qw(
             _default 
             _start 
+            lag_o_meter
             irc_001 
             irc_invite
             irc_kick
@@ -68,10 +72,16 @@ POE::Session->create(
 $poe_kernel->run();
 
 sub _start {
-    my $heap = $_[HEAP];
+    my ($kernel, $heap) = @_[KERNEL, HEAP];
 
     # retrieve our component's object from the heap where we stashed it
     my $irc = $heap->{irc};
+
+    $heap->{connector} = POE::Component::IRC::Plugin::Connector->new(
+        delay       => $LAG,
+        reconnect   => 60,
+    );
+    $irc->plugin_add( 'Connector' => $heap->{connector} );
 
     # Commands
     $irc->plugin_add('BotCommand',
@@ -96,11 +106,26 @@ sub _start {
 
     $irc->yield( register => 'all' );
     $irc->yield( connect => { } );
+
+    # Restart the lag_o_meter
+    $kernel->delay( 'lag_o_meter' => $LAG );
+
+    return;
+}
+
+sub lag_o_meter {
+    my ($kernel, $heap) = @_[KERNEL, HEAP];
+
+    my $time = localtime;
+    print 'Time: ' . $time . ' Lag: ' . $heap->{connector}->lag() . "\n";
+
+    $kernel->delay( 'lag_o_meter' => $LAG );
+
     return;
 }
 
 sub irc_001 {
-    my $sender = $_[SENDER];
+    my ($kernel, $sender) = @_[KERNEL, SENDER];
 
     # Since this is an irc_* event, we can get the component's object by
     # accessing the heap of the sender. Then we register and connect to the
@@ -111,11 +136,15 @@ sub irc_001 {
 
     # we join our channels
     $irc->yield( join => $_ ) for @channels;
+
+    # Restart the lag_o_meter
+    $kernel->delay( 'lag_o_meter' => $LAG );
+
     return;
 }
 
 sub irc_kick {
-    my ($kicker, $where, $kicked) = @_[ARG0 .. ARG2];
+    my ($kernel, $kicker, $where, $kicked) = @_[KERNEL, ARG0 .. ARG2];
 
     # Remove the channel to the list
     my @channels = $CONF->param('channels');
@@ -138,11 +167,14 @@ sub irc_kick {
 
     $CONF->save();
 
+    # Restart the lag_o_meter
+    $kernel->delay( 'lag_o_meter' => $LAG );
+
     return;
 }
 
 sub irc_invite {
-    my ($who, $where) = @_[ARG0 .. ARG1];
+    my ($kernel, $who, $where) = @_[KERNEL, ARG0 .. ARG1];
     my $nick = ( split /!/, $who )[0];
 
     if ($CONF->param('invites') == 0) {
@@ -159,30 +191,21 @@ sub irc_invite {
 
     # we join our channels
     $irc->yield( join => $where );
+
+    # Restart the lag_o_meter
+    $kernel->delay( 'lag_o_meter' => $LAG );
+
     return;
 }
 
 sub irc_public {
-    my ($sender, $who, $where, $what) = @_[SENDER, ARG0 .. ARG2];
+    my ($kernel, $sender, $who, $where, $what) = @_[KERNEL, SENDER, ARG0 .. ARG2];
     my $nick = ( split /!/, $who )[0];
     my $channel = $where->[0];
 
     unless (check_if_bot('', $nick) ) {
         return;
     }
-
-#  { 
-#    'ID' => 'f7572a24-b282-4f14-9326-9a29dcc7250d',
-#    '__metadata' => { 
-#                      'type' => 'WebResult',
-#                      'uri' => 'https://api.datamarket.azure.com/Data.ashx/Bing/SearchWeb/v1/Web?Query=\'Surrey LUG\'&Latitude=51.2362&Longitude=-0.5704&$skip=0&$top=1'
-#                    },
-#    'Url' => 'http://surrey.lug.org.uk/',
-#    'Description' => 'Surrey LUG is a friendly Linux user group. If you have any interest in Linux, GNU (or related systems such as *BSD, Solaris, OpenSolaris, etc) and are based in Surrey ...',
-#    'DisplayUrl' => 'surrey.lug.org.uk',
-#    'Title' => 'Surrey Linux User Group'
-#  }
-
 
     # Ignore sluggle: commands - handled by botcommand plugin
     my $whoami = $CONF->param('nickname');
@@ -217,12 +240,15 @@ sub irc_public {
 
     }
 
+    # Restart the lag_o_meter
+    $kernel->delay( 'lag_o_meter' => $LAG );
+
     return;
 }
 
 # We registered for all events, this will produce some debug info.
 sub _default {
-    my ($event, $args) = @_[ARG0 .. $#_];
+    my ($kernel, $event, $args) = @_[KERNEL, ARG0 .. $#_];
     my @output = ( "$event: " );
 
     for my $arg (@$args) {
@@ -233,7 +259,12 @@ sub _default {
             push ( @output, "'$arg'" );
         }
     }
+
     print join ' ', @output, "\n";
+
+    # Restart the lag_o_meter
+    $kernel->delay( 'lag_o_meter' => $LAG );
+
     return;
 }
 
@@ -290,16 +321,16 @@ sub sanitise_address {
 }
 
 sub irc_botcmd_wolfram {
-    my $nick = ( split /!/, $_[ARG0] )[0];
-
-    my ($channel, $request) = @_[ ARG1, ARG2 ];
+    my ($kernel, $who, $channel, $request) = @_[KERNEL, ARG0 .. ARG2];
+    my $nick = ( split /!/, $who )[0];
 
     my $response = wolfram($request);
-
     $irc->yield( privmsg => $channel => "$nick: $response.");
 
-    return;
+    # Restart the lag_o_meter
+    $kernel->delay( 'lag_o_meter' => $LAG );
 
+    return;
 }
 
 sub superchomp {
@@ -388,9 +419,8 @@ sub wolfram {
 }
 
 sub irc_botcmd_op {
-    my $nick = ( split /!/, $_[ARG0] )[0];
-
-    my ($channel, $request) = @_[ ARG1, ARG2 ];
+    my ($kernel, $who, $channel, $request) = @_[KERNEL, ARG0 .. ARG2];
+    my $nick = ( split /!/, $who )[0];
 
     if ( check_if_op($channel, $nick) ) {
         $irc->yield( privmsg => $channel => "$nick: You are indeed a might op!");
@@ -398,16 +428,17 @@ sub irc_botcmd_op {
         $irc->yield( privmsg => $channel => "$nick: Only channel operators may do that!");
     } 
 
+    # Restart the lag_o_meter
+    $kernel->delay( 'lag_o_meter' => $LAG );
+
     return;
 
 }
 
 sub irc_botcmd_ignore {
-    my $nick = ( split /!/, $_[ARG0] )[0];
-
-    my ($channel, $request) = @_[ ARG1, ARG2 ];
-
-    my ($action, $bot) = split(/\s+/, $request);
+    my ($kernel, $who, $channel, $request) = @_[KERNEL, ARG0 .. ARG2];
+    my $nick            = ( split /!/, $who )[0];
+    my ($action, $bot)  = split(/\s+/, $request);
 
     unless ( ( check_if_op($channel, $nick) ) or ($nick eq $bot) ) {
         $irc->yield( privmsg => $channel => "$nick: Only channel operators may do that!");
@@ -425,8 +456,10 @@ sub irc_botcmd_ignore {
 
     $irc->yield( privmsg => $channel => "$nick: Bots - $bots");
 
-    return;
+    # Restart the lag_o_meter
+    $kernel->delay( 'lag_o_meter' => $LAG );
 
+    return;
 }
 
 sub filter_unique {
@@ -489,16 +522,17 @@ sub delbot {
 }
 
 sub irc_botcmd_find {
-    my $nick = ( split /!/, $_[ARG0] )[0];
-
-    my ($channel, $request) = @_[ ARG1, ARG2 ];
+    my ($kernel, $who, $channel, $request) = @_[KERNEL, ARG0 .. ARG2];
+    my $nick = ( split /!/, $who )[0];
 
     my $response = find($request);
 
     $irc->yield( privmsg => $channel => "$nick: " . $response);
 
-    return;
+    # Restart the lag_o_meter
+    $kernel->delay( 'lag_o_meter' => $LAG );
 
+    return;
 }
 
 sub strip_non_alphanumerics {
@@ -613,9 +647,8 @@ sub find {
 }
 
 sub irc_botcmd_wot {
-    my $nick = ( split /!/, $_[ARG0] )[0];
-
-    my ( $channel, $request ) = @_[ ARG1, ARG2 ];
+    my ($kernel, $who, $channel, $request) = @_[KERNEL, ARG0 .. ARG2];
+    my $nick = ( split /!/, $who )[0];
 
     if ($request !~ /^https?:\/\//i) {
         $request = 'http://' . $request;
@@ -647,8 +680,10 @@ sub irc_botcmd_wot {
         $irc->yield( privmsg => $channel => "$nick: WoT did not return any site reputation.");
     }
 
-    return;
+    # Restart the lag_o_meter
+    $kernel->delay( 'lag_o_meter' => $LAG );
 
+    return;
 }
 
 sub wot {
@@ -905,7 +940,7 @@ sub search {
 #                       "uri":"https://api.datamarket.azure.com/Data.ashx/Bing/SearchWeb/v1/Web?Query=\\u0027Surrey LUG\\u0027&Latitude=51.2362&Longitude=-0.5704&$skip=# 0&$top=1",
 #                       "type":"WebResult"
 #                   },
-#                   "ID":"bd83151f-c94e-4a44-916c-4d9dba501a69",
+#                   "ID":"xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
 #                   "Title":"Surrey Linux User Group",
 #                   "Description":"Surrey LUG is a friendly Linux user group. If you have any interest in Linux, GNU (or related systems such as *BSD, Solaris, OpenSolaris, etc) and are based in Surrey ...",
 #                   "DisplayUrl":"surrey.lug.org.uk",
@@ -940,7 +975,7 @@ sub search {
 #                   '__next' => 'https://api.datamarket.azure.com/Data.ashx/Bing/SearchWeb/v1/Web?Query=\'Surrey%20LUG\'&Latitude=51.2362&Longitude=-0.5704&$skip=1&$top=1',
 #                   'results' => [ 
 #                                  { 
-#                                    'ID' => 'f7572a24-b282-4f14-9326-9a29dcc7250d',
+#                                    'ID' => 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
 #                                    '__metadata' => { 
 #                                                      'type' => 'WebResult',
 #                                                      'uri' => 'https://api.datamarket.azure.com/Data.ashx/Bing/SearchWeb/v1/Web?Query=\'Surrey LUG\'&Latitude=51.2362&Longitude=-0.5704&$skip=0&$top=1'
