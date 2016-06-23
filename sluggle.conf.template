@@ -2,7 +2,7 @@
 
 # IRC
 nickname    "sluggle"
-ircname     "Sluggle the Sailor Bot"
+ircname     "https://github.com/chrisjrob/sluggle"
 server      "irc.freenode.net"
 channels    "#Foo", "#Bar"
 
