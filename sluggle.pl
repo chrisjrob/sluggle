@@ -27,7 +27,7 @@ use POE::Component::IRC::State;
 use POE::Component::IRC::Plugin::BotCommand;
 use POE::Component::IRC::Plugin::Connector;
 
-use vars qw( $CONF $LAG );
+use vars qw( $CONF $LAG $REC );
 use Config::Simple;
 
 if ( (defined $ARGV[0]) and (-r $ARGV[0]) ) {
@@ -37,7 +37,11 @@ if ( (defined $ARGV[0]) and (-r $ARGV[0]) ) {
     exit;
 }
 
-$LAG = 60;
+# Set the Ping delay
+$LAG = 300;
+
+# Set the Reconnect delay
+$REC = 60;
 
 my @channels = $CONF->param('channels');
 
@@ -79,7 +83,7 @@ sub _start {
 
     $heap->{connector} = POE::Component::IRC::Plugin::Connector->new(
         delay       => $LAG,
-        reconnect   => 60,
+        reconnect   => $REC,
     );
     $irc->plugin_add( 'Connector' => $heap->{connector} );
 
