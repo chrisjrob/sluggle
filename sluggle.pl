@@ -67,6 +67,7 @@ POE::Session->create(
             irc_botcmd_op
             irc_botcmd_wolfram
             irc_botcmd_ignore
+            irc_botcmd_wikipedia
             irc_public
         ) ],
     ],
@@ -92,6 +93,7 @@ sub _start {
         POE::Component::IRC::Plugin::BotCommand->new(
             Commands => {
                 find        => 'A simple Internet search, takes one argument - a string to search.',
+                wikipedia   => 'Looks up search terms on Wikipedia, takes one argument.',
                 wot         => 'Looks up WoT Web of Trust reputation, takes one argument - an http web address.',
                 wolfram     => 'A simple Wolfram Alpha search, takes one argument - a string to search.',
                 op          => 'Currently has no other purpose than to tell you if you are an op or not!',
@@ -215,7 +217,7 @@ sub irc_public {
     my $whoami = $CONF->param('nickname');
     my $prefix = $CONF->param('prefix');
 
-    if ($what =~ /^(?:$prefix|$whoami:)\s*(?:find|wot|op|wolfram|ignore|help)/i) {
+    if ($what =~ /^(?:$prefix|$whoami:)\s*(?:find|wot|op|wolfram|wikipedia|ignore|help)/i) {
         # Do nothing - these requests being handled by irc_command_*
 
     # Default find command
@@ -322,6 +324,27 @@ sub sanitise_address {
     }
 
     return $response;
+}
+
+sub irc_botcmd_wikipedia {
+    my ($kernel, $who, $channel, $request) = @_[KERNEL, ARG0 .. ARG2];
+    my $nick = ( split /!/, $who )[0];
+
+    my ($extract, $response) = mediawiki($request);
+    my $title = $response->{'Title'};
+    $title =~ s/\s+\-.+$//;
+
+    if ( (defined $response->{'Title'}) and (defined $response->{'Url'}) ) {
+        $irc->yield( privmsg => $channel => "$nick: $title - $response->{'Url'}");
+        $irc->yield( privmsg => $channel => $extract);
+    } else {
+        $irc->yield( privmsg => $channel => "$nick: $extract");
+    }
+
+    # Restart the lag_o_meter
+    $kernel->delay( 'lag_o_meter' => $LAG );
+
+    return;
 }
 
 sub irc_botcmd_wolfram {
@@ -641,7 +664,7 @@ sub find {
     if ($count != 0) {
         my $message = join(' - ', @elements);
         $message = check_for_server_ip($message);
-        return $message . '.';
+        return ($message . '.', $url);
     } else {
         # Do nothing, hopefully no-one will notice
     }
@@ -909,6 +932,82 @@ sub get_data {
     }
 
 }
+
+sub mediawiki {
+    my $request = shift;
+
+    my $response = search('site:en.wikipedia.org ' . $request);
+
+    my $url     = $response->{'Url'};
+    my $title   = $response->{'Title'};
+    my $error   = $response->{'Error'};
+
+    unless (defined $url) {
+        if (defined $error) {
+            return "There were no search results - $error";
+        } else {
+            return "There were no search results!";
+        }
+    }
+
+    my $apiurl = mediawiki_api_url($url);
+
+    use LWP::UserAgent;
+
+    my $ua = LWP::UserAgent->new;
+    $ua->timeout(20);
+    $ua->env_proxy;
+
+    my $req = HTTP::Request->new( GET => $apiurl );
+    my $response2 = $ua->request( $req );
+
+    use JSON;
+
+    my $ref;
+    eval { $ref = JSON::decode_json( $response2->{'_content'} ); };
+
+    if ( $@ ) {
+        warn "\n\n-------------- DEBUG ------------------\n";
+        warn "Wikipedia has returned a malformed JSON response\n";
+        warn "Query: $apiurl\n";
+        warn "Response: $@\n";
+
+        $response->{'Error'} = "Wikipedia returned $@";
+        return $response;
+    }
+
+    my $pageid = (keys %{ $ref->{'query'}->{'pages'} })[0];
+
+    my $extract = ($ref->{'query'}->{'pages'}->{$pageid}->{'extract'});
+    $extract =~ s/[\r\n]+/ /g;
+    $extract =~ s/[^[:ascii:]]//g;
+
+    return ($extract, $response);
+
+}
+
+sub mediawiki_api_url {
+    my $request = shift;
+
+    # https://en.wikipedia.org/wiki/Withdrawal_from_the_European_Union
+    my ($title) = $request =~ m/\/wiki\/(\w+)/;
+
+    use URI::URL;
+    my $url = new URI::URL $request;
+    my ($host, $scheme);
+
+    eval { $scheme = $url->scheme; };
+    warn "Scheme not found $@" if $@;
+
+    eval { $host = $url->host; };
+    warn "Host not found $@" if $@;
+
+    my $path = '/w/api.php?format=json&action=query&prop=extracts&exintro=&explaintext=&titles=';
+
+    my $apiurl = $scheme . '://' . $host . $path . $title;
+
+    return $apiurl;
+} 
 
 sub search {
     my $query = shift;
