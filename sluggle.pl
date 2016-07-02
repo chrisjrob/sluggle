@@ -274,7 +274,7 @@ sub _default {
     return;
 }
 
-sub sanitise_address {
+sub validate_address {
     my $request = shift;
 
     my $count = (my @elements) = split(/\s+/, $request);
@@ -592,7 +592,7 @@ sub check_for_server_ip {
     if ($request_an =~ s/(?:$ipv4_an|$ipv6_an)/censored/gi) {
         # If there is still a hidden IP address
         # you'd better return the stripped and 
-        # sanitised output
+        # validated output
         return $request_an;
     } else {
         # All good
@@ -609,7 +609,7 @@ sub find {
 
     # Web address search
     if ($request =~ /^https?:\/\//i) {
-        my $errors = sanitise_address($request);
+        my $errors = validate_address($request);
         if ($errors ne '0') {
             return $errors;
         }
@@ -681,7 +681,7 @@ sub irc_botcmd_wot {
         $request = 'http://' . $request;
     }
 
-    my $errors = sanitise_address($request);
+    my $errors = validate_address($request);
     if ($errors ne '0') {
         $irc->yield( privmsg => $channel => "$nick: $errors");
         return;
