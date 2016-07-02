@@ -279,16 +279,19 @@ sub validate_address {
 
     my $count = (my @elements) = split(/\s+/, $request);
 
-    my $response = 0;
+    my $retcode = 1; # success
+    my $error;
 
     # Basic checks
     if ($count > 1) {
-        $response = 'Spaces are not permitted';
-        return $response;
+        $retcode = 0;
+        $error = 'Spaces are not permitted';
+        return $retcode, $error;
 
     } elsif ($request !~ m|(?:([^:/?#]+):)?(?://([^/?#]*))?([^?#]*)(?:\?([^#]*))?(?:#(.*))?|) {
-        $response = 'That does not look like a URL';
-        return $response;
+        $retcode = 0;
+        $error = 'That does not look like a URL';
+        return $retcode, $error;
 
     }
 
@@ -307,23 +310,28 @@ sub validate_address {
     warn "Host not found $@" if $@;
 
     if ($@) {
-        $response = "Host not found $@";
+        $retcode = 0;
+        $error = "Host not found $@";
 
     } elsif ( (defined $port) and ($port ne '80' ) and ($port ne '443') ) {
-        $response = 'Non-standard HTTP ports are not permitted';
+        $retcode = 0;
+        $error = 'Non-standard HTTP ports are not permitted';
 
     } elsif ( $request =~ m/^(?:https?:\/\/)?$IPv4_re/i ) {
-        $response = 'IP addresses are not permitted';
+        $retcode = 0;
+        $error = 'IP addresses are not permitted';
 
     } elsif ( $request =~ m/^(?:https?:\/\/)?$IPv6_re/i ) {
-        $response = 'IP addresses are not permitted';
+        $retcode = 0;
+        $error = 'IP addresses are not permitted';
 
     } elsif ( $request =~ m/^(?:https?:\/\/)?[\/\.]+/i ) {
-        $response = 'URLs starting with a file path are not permitted';
+        $retcode = 0;
+        $error = 'URLs starting with a file path are not permitted';
 
     }
 
-    return $response;
+    return $retcode, $error;
 }
 
 sub irc_botcmd_wikipedia {
@@ -609,9 +617,9 @@ sub find {
 
     # Web address search
     if ($request =~ /^https?:\/\//i) {
-        my $errors = validate_address($request);
-        if ($errors ne '0') {
-            return $errors;
+        my ($retcode, $error) = validate_address($request);
+        if ($retcode == 0) {
+            return $error;
         }
 
         $url     = $request;
@@ -681,15 +689,15 @@ sub irc_botcmd_wot {
         $request = 'http://' . $request;
     }
 
-    my $errors = validate_address($request);
-    if ($errors ne '0') {
-        $irc->yield( privmsg => $channel => "$nick: $errors");
+    my ($retcode, $error) = validate_address($request);
+    if ($retcode == 0) {
+        $irc->yield( privmsg => $channel => "$nick: $error");
         return;
     }
 
     my $wot;
     eval { $wot = wot($request); };
-    my $error = $@;
+    $error = $@;
     warn "WoT $error" if $error;
 
     if ((defined $wot) and ($wot->{trustworthiness_score} =~ /\d/) ) {
