@@ -233,7 +233,15 @@ sub irc_public {
         # Otherwise search the whole string
         } else {
             my $response = find($request);
-            $irc->yield( privmsg => $channel => "$nick: " . $response);
+            my ($type, $lines) = is_wikipedia($request, $response);
+            if ($type eq 'wikipedia') {
+                $irc->yield( privmsg => $channel => "$nick: " . $$lines[0]);
+                if (defined $$lines[1]) {
+                    $irc->yield( privmsg => $channel => $$lines[1]);
+                }
+            } else {
+                $irc->yield( privmsg => $channel => "$nick: " . $response);
+            }
         }
 
     # Shorten links and return title
@@ -334,6 +342,27 @@ sub validate_address {
     return $retcode, $error;
 }
 
+sub is_wikipedia {
+    my ($request, $result) = @_;
+
+    # Evaluate response and if wikipedia return wikipedia response else return unchanged
+    unless ($result =~ /wikipedia/) {
+        return 'normal', $result;
+    }
+
+    my ($extract, $response) = mediawiki($request);
+    my $title = $response->{'Title'};
+    $title =~ s/\s+\-.+$//;
+
+    my @lines;
+    if ( (defined $response->{'Title'}) and (defined $response->{'Url'}) ) {
+        push(@lines, "$title - $response->{'Url'}");
+    }
+    push(@lines, $extract);
+
+    return 'wikipedia', \@lines;
+}
+
 sub irc_botcmd_wikipedia {
     my ($kernel, $who, $channel, $request) = @_[KERNEL, ARG0 .. ARG2];
     my $nick = ( split /!/, $who )[0];
@@ -410,11 +439,11 @@ sub wolfram {
         my ($result_title, $result_subtitle, $result_plaintext);
 
         # Results
-        $pod                    = $query->pods->[1];
+        $pod = $query->pods->[1];
 
         if (defined $pod) {
             $result_title        = $pod->title;
-            $subpod                 = $pod->subpods->[0];
+            $subpod              = $pod->subpods->[0];
             $response .= $result_title . ' ';
         }
 
