@@ -613,11 +613,12 @@ sub check_for_server_ip {
 sub find {
     my $request = shift;
 
-    my ($url, $title, $shorten, $wot, $error);
+    my ($url, $title, $shorten, $wot, $error, $response);
+    my $retcode = 1;
 
     # Web address search
     if ($request =~ /^https?:\/\//i) {
-        my ($retcode, $error) = validate_address($request);
+        ($retcode, $error) = validate_address($request);
         if ($retcode == 0) {
             return $error;
         }
@@ -629,14 +630,14 @@ sub find {
 
     # Assume string search
     } else {
-        my $response = search($request);
+        ($retcode, $response) = search($request);
         $url     = $response->{'Url'};
         $title   = $response->{'Title'};
         $error   = $response->{'Error'};
         $shorten = $url; # Don't shorten URL on plain web search
     }
 
-    unless (defined $url) {
+    if ($retcode == 0) {
         if (defined $error) {
             return "There were no search results - $error";
         } else {
@@ -944,7 +945,7 @@ sub get_data {
 sub mediawiki {
     my $request = shift;
 
-    my $response = search('site:en.wikipedia.org ' . $request);
+    my ($retcode, $response) = search('site:en.wikipedia.org ' . $request);
 
     my $url     = $response->{'Url'};
     my $title   = $response->{'Title'};
@@ -1020,6 +1021,8 @@ sub mediawiki_api_url {
 sub search {
     my $query = shift;
 
+    my $retcode = 1;
+
     # Remove any non-ascii characters
     $query =~ s/[^[:ascii:]]//g;
 
@@ -1073,8 +1076,10 @@ sub search {
         warn "Query: $query\n";
         warn "Response: $@\n";
 
+        $retcode = 0;
         $response->{'Error'} = "Bing returned $@";
-        return $response;
+
+        return $retcode, $response;
     }
 
     # warn Dumper( $ref );
@@ -1100,7 +1105,7 @@ sub search {
 #                 }
 #        };
 
-    return( $ref->{'d'}{'results'}[0] );
+    return( $retcode, $ref->{'d'}{'results'}[0] );
 
 }
 
