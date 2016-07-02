@@ -233,14 +233,19 @@ sub irc_public {
         # Otherwise search the whole string
         } else {
             my $response = find($request);
+
+            # If response is a wikipedia response, use wikipedia
             my ($type, $lines) = is_wikipedia($request, $response);
             if ($type eq 'wikipedia') {
                 $irc->yield( privmsg => $channel => "$nick: " . $$lines[0]);
                 if (defined $$lines[1]) {
                     $irc->yield( privmsg => $channel => $$lines[1]);
                 }
+
+            # Return the original result
             } else {
                 $irc->yield( privmsg => $channel => "$nick: " . $response);
+
             }
         }
 
@@ -663,7 +668,7 @@ sub find {
         $url     = $response->{'Url'};
         $title   = $response->{'Title'};
         $error   = $response->{'Error'};
-        $shorten = $url; # Don't shorten URL on plain web search
+        $shorten = $url; # Important - don't shorten URL on plain web search
     }
 
     if ($retcode == 0) {
