@@ -719,7 +719,7 @@ sub find {
     if ($count != 0) {
         my $message = join(' - ', @elements);
         $message = check_for_server_ip($message);
-        return ($message . '.', $url);
+        return ($message . '.' . $url);
     } else {
         # Do nothing, hopefully no-one will notice
     }
