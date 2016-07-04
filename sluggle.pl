@@ -223,8 +223,12 @@ sub irc_public {
     # Default find command
     } elsif ( (my $request) = $what =~ /^(?:$whoami[:,])\s*(.+)$/i) {
 
+        if ((not defined $request) or ($request =~ /^\s*$/)) {
+            $irc->yield( privmsg => $channel => "$nick: You haven't asked me anything!");
+            return;
+
         # If there are URLs in the search - use them
-        if ( (my @requests) = $what =~ /\b(https?:\/\/[^ ]+)\b/g ) {
+        } elsif ( (my @requests) = $what =~ /\b(https?:\/\/[^ ]+)\b/g ) {
             foreach my $request (@requests) {
                 my $response = find($request);
                 $irc->yield( privmsg => $channel => "$nick: " . $response);
@@ -251,12 +255,10 @@ sub irc_public {
 
     # Shorten links and return title
     } elsif ( (my @requests) = $what =~ /\b(https?:\/\/[^ ]+)\b/g ) {
-
         foreach my $request (@requests) {
             my $response = find($request);
             $irc->yield( privmsg => $channel => "$nick: " . $response);
         }
-
     }
 
     # Restart the lag_o_meter
