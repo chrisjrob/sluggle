@@ -412,6 +412,10 @@ sub superchomp {
 sub wolfram {
     my $request = shift;
 
+    if (not defined $request) {
+        return "Command Wolfram should be followed by a request";
+    }
+
     use Net::WolframAlpha; 
     use Text::Unaccent::PurePerl;
 
