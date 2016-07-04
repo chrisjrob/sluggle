@@ -596,7 +596,19 @@ sub irc_botcmd_find {
 
     my $response = find($request);
 
-    $irc->yield( privmsg => $channel => "$nick: " . $response);
+    # If response is a wikipedia response, use wikipedia
+    my ($type, $lines) = is_wikipedia($request, $response);
+    if ($type eq 'wikipedia') {
+        $irc->yield( privmsg => $channel => "$nick: " . $$lines[0]);
+        if (defined $$lines[1]) {
+            $irc->yield( privmsg => $channel => $$lines[1]);
+        }
+
+    # Return the original result
+    } else {
+        $irc->yield( privmsg => $channel => "$nick: " . $response);
+
+    }
 
     # Restart the lag_o_meter
     $kernel->delay( 'lag_o_meter' => $LAG );
