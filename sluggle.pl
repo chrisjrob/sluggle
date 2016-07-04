@@ -372,6 +372,11 @@ sub irc_botcmd_wikipedia {
     my ($kernel, $who, $channel, $request) = @_[KERNEL, ARG0 .. ARG2];
     my $nick = ( split /!/, $who )[0];
 
+    if ( not defined $request ) {
+        $irc->yield( privmsg => $channel => "$nick: Command Wikipedia should be followed by text to be searched.");
+        return;
+    }
+
     my ($extract, $response) = mediawiki($request);
     my $title = $response->{'Title'};
     $title =~ s/\s+\-.+$//;
@@ -392,6 +397,11 @@ sub irc_botcmd_wikipedia {
 sub irc_botcmd_wolfram {
     my ($kernel, $who, $channel, $request) = @_[KERNEL, ARG0 .. ARG2];
     my $nick = ( split /!/, $who )[0];
+
+    if ( not defined $request ) {
+        $irc->yield( privmsg => $channel => "$nick: Command Wolfram should be followed by text to be searched.");
+        return;
+    }
 
     my $response = wolfram($request);
     $irc->yield( privmsg => $channel => "$nick: $response.");
@@ -518,6 +528,11 @@ sub irc_botcmd_ignore {
         return;
     }
 
+    if (not defined $request) {
+        $irc->yield( privmsg => $channel => "$nick: Command ignore should be followed by a nick.");
+        return;
+    }
+
     my $bots;
     if ($action =~ /^add$/i) {
         $bots = addbot($bot);
@@ -597,6 +612,11 @@ sub delbot {
 sub irc_botcmd_find {
     my ($kernel, $who, $channel, $request) = @_[KERNEL, ARG0 .. ARG2];
     my $nick = ( split /!/, $who )[0];
+
+    if ( not defined $request ) {
+        $irc->yield( privmsg => $channel => "$nick: Command find should be followed by text to be searched.");
+        return;
+    }
 
     my $response = find($request);
 
@@ -736,8 +756,13 @@ sub irc_botcmd_wot {
     my ($kernel, $who, $channel, $request) = @_[KERNEL, ARG0 .. ARG2];
     my $nick = ( split /!/, $who )[0];
 
-    if ($request !~ /^https?:\/\//i) {
+    if ( not defined $request ) {
+        $irc->yield( privmsg => $channel => "$nick: Command WoT should be followed by domain to be checked.");
+        return;
+
+    } elsif ($request !~ /^https?:\/\//i) {
         $request = 'http://' . $request;
+
     }
 
     my ($retcode, $error) = validate_address($request);
@@ -774,6 +799,10 @@ sub irc_botcmd_wot {
 
 sub wot {
     my $request = shift;
+
+    if (not defined $request) {
+        return "WoT command should be followed by domain to be checked";
+    }
 
     use URI::URL;
     my $url = new URI::URL $request;
@@ -994,6 +1023,10 @@ sub get_data {
 
 sub mediawiki {
     my $request = shift;
+
+    if (not defined $request) {
+        return "Wikipedia command should be followed by text to be searched";
+    }
 
     my ($retcode, $response) = search('site:en.wikipedia.org ' . $request);
 
