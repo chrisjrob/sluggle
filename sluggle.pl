@@ -217,11 +217,19 @@ sub irc_public {
     my $whoami = $CONF->param('nickname');
     my $prefix = $CONF->param('prefix');
 
-    if ($what =~ /^(?:$prefix|$whoami:)\s*(?:find|wot|op|wolfram|wikipedia|ignore|help)/i) {
-        # Do nothing - these requests being handled by irc_command_*
+    # Cope with commands that are followed only with a space
+    # This is a bug I think in botcommand plugin
+    if (my ($command) = $what =~ /^(?:$prefix|$whoami:)\s*(find|wot|op|wolfram|wikipedia|ignore|help)\s+$/i) {
+        warn "==================================== A ==================================";
+        $irc->yield( privmsg => $channel => "$nick: $command followed by whitespace only is invalid.");
+
+    # Do nothing - these requests being handled by irc_command_*
+    } elsif ($what =~ /^(?:$prefix|$whoami:)\s*(?:find|wot|op|wolfram|wikipedia|ignore|help)/i) {
+        warn "==================================== B ==================================";
 
     # Default find command
     } elsif ( (my $request) = $what =~ /^(?:$whoami[:,])\s*(.+)$/i) {
+        warn "==================================== C ==================================";
 
         if ((not defined $request) or ($request =~ /^\s*$/)) {
             $irc->yield( privmsg => $channel => "$nick: You haven't asked me anything!");
@@ -255,6 +263,7 @@ sub irc_public {
 
     # Shorten links and return title
     } elsif ( (my @requests) = $what =~ /\b(https?:\/\/[^ ]+)\b/g ) {
+        warn "==================================== D ==================================";
         foreach my $request (@requests) {
             my $response = find($request);
             $irc->yield( privmsg => $channel => "$nick: " . $response);
@@ -374,7 +383,7 @@ sub irc_botcmd_wikipedia {
     my ($kernel, $who, $channel, $request) = @_[KERNEL, ARG0 .. ARG2];
     my $nick = ( split /!/, $who )[0];
 
-    if ( not defined $request ) {
+    if ((not defined $request) or ($request =~ /^\s*$/)) {
         $irc->yield( privmsg => $channel => "$nick: Command Wikipedia should be followed by text to be searched.");
         return;
     }
@@ -400,7 +409,7 @@ sub irc_botcmd_wolfram {
     my ($kernel, $who, $channel, $request) = @_[KERNEL, ARG0 .. ARG2];
     my $nick = ( split /!/, $who )[0];
 
-    if ( not defined $request ) {
+    if ((not defined $request) or ($request =~ /^\s*$/)) {
         $irc->yield( privmsg => $channel => "$nick: Command Wolfram should be followed by text to be searched.");
         return;
     }
@@ -424,7 +433,7 @@ sub superchomp {
 sub wolfram {
     my $request = shift;
 
-    if (not defined $request) {
+    if ((not defined $request) or ($request =~ /^\s*$/)) {
         return "Command Wolfram should be followed by a request";
     }
 
@@ -530,7 +539,7 @@ sub irc_botcmd_ignore {
         return;
     }
 
-    if (not defined $request) {
+    if ((not defined $request) or ($request =~ /^\s*$/)) {
         $irc->yield( privmsg => $channel => "$nick: Command ignore should be followed by a nick.");
         return;
     }
@@ -615,7 +624,7 @@ sub irc_botcmd_find {
     my ($kernel, $who, $channel, $request) = @_[KERNEL, ARG0 .. ARG2];
     my $nick = ( split /!/, $who )[0];
 
-    if ( not defined $request ) {
+    if ((not defined $request) or ($request =~ /^\s*$/)) {
         $irc->yield( privmsg => $channel => "$nick: Command find should be followed by text to be searched.");
         return;
     }
@@ -758,7 +767,9 @@ sub irc_botcmd_wot {
     my ($kernel, $who, $channel, $request) = @_[KERNEL, ARG0 .. ARG2];
     my $nick = ( split /!/, $who )[0];
 
-    if ( not defined $request ) {
+    warn "========================= $request =======================";
+
+    if ((not defined $request) or ($request =~ /^\s*$/)) {
         $irc->yield( privmsg => $channel => "$nick: Command WoT should be followed by domain to be checked.");
         return;
 
@@ -802,7 +813,7 @@ sub irc_botcmd_wot {
 sub wot {
     my $request = shift;
 
-    if (not defined $request) {
+    if ((not defined $request) or ($request =~ /^\s*$/)) {
         return "WoT command should be followed by domain to be checked";
     }
 
@@ -1026,7 +1037,7 @@ sub get_data {
 sub mediawiki {
     my $request = shift;
 
-    if (not defined $request) {
+    if ((not defined $request) or ($request =~ /^\s*$/)) {
         return "Wikipedia command should be followed by text to be searched";
     }
 
