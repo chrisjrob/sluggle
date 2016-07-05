@@ -826,7 +826,11 @@ sub wot {
     use Net::WOT;
     my $wot = Net::WOT->new;
 
-    my %wot = $wot->get_reputation($host);
+    my %wot;
+    eval {
+        %wot = $wot->get_reputation($host);
+    };
+    warn "Get WoT Reputation failed $@" if $@;
 
     # the %wot hash seems oddly structured
     my $mywot = {
