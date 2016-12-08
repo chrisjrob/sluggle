@@ -1010,7 +1010,7 @@ sub get_data {
 
     # Simple HTML page
     if ($type =~ m/^text\/html/i) {
-        my $title = decode_utf8( $response->title() );
+        my $title = decode_utf8( $response->header('Title') );
         return $title;
 
     # Images handled by graphicsmagick
