@@ -4,6 +4,12 @@
 
 sluggle - A Simple IRC Searchbot
 
+## Important
+
+As usually happens with search APIs - the Bing search API has been deprecrated. 
+Until such time as I rewrite this for other APIs, or write some dodgy scraper, 
+this bot is not usable at least for search functions.
+
 ## Usage
 
 In default search mode (assumes find command):
