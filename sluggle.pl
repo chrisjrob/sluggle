@@ -262,7 +262,15 @@ sub irc_public {
         }
 
     # Shorten links and return title
-    } elsif ( (my @requests) = $what =~ /\b(https?:\/\/[^ ]+)\b/g ) {
+    } elsif ( (my @requests) = $what =~ /
+        \b
+        (https?:\/\/[^ ]+)
+        (?:
+            [\s\(\)\[\]]
+            |
+            $
+        )
+        /gx ) {
         warn "==================================== D ==================================";
         foreach my $request (@requests) {
             my $response = find($request);
