@@ -86,29 +86,19 @@ sub duckduckgo {
     use Data::Dumper;
     warn Dumper( $zeroclickinfo );
 
-    use JSON;
-
-    my $ref;
-    eval { $ref = JSON::decode_json( $zeroclickinfo ); };
-
-    my $error;
-    if ( $@ ) {
-        warn "\n\n-------------- DEBUG ------------------\n";
-        warn "DuckDuckGo has returned a malformed JSON response\n";
-        warn "Query: $query\n";
-        warn "Response: $@\n";
-
+    my $results;
+    if ( $zeroclickinfo->hasresults ) {
+        $results = {
+            url         => $zeroclickinfo->results[0]{FirstURL},
+            title       => $zeroclickinfo->results[0]{Text},
+            error       => '',
+        };
+    } else {
         $retcode = 0;
-        $error = "DuckDuckGo returned $@";
-
-        return $retcode, { error => $error };
+        $results = {
+            error       => 'DuckDuckGo returned no results',
+        };
     }
-
-    my $results = {
-        url         => $ref->{Results}[0]{FirstURL},
-        title       => $ref->{Results}[0]{Text},
-        error       => $error,
-    };
 
     return( $retcode, $results );
 }
