@@ -69,7 +69,7 @@ sub bing {
 }
 
 sub duckduckgo {
-    my ($conf, $query) = shift;
+    my ($conf, $query) = @_;
 
     my $retcode = 1;
 
