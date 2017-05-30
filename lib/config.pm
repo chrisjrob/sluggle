@@ -22,8 +22,6 @@ our %EXPORT_TAGS = (
     ALL     => [@functions],
 );
 
-# Module functions
-
 sub get_config {
     my $file = shift;
     my $conf = new Config::Simple($file);
