@@ -21,6 +21,8 @@ use strict;
 use warnings;
 use utf8;
 
+use "lib/config.pm";
+
 use POE;
 use POE::Component::IRC;
 use POE::Component::IRC::State;
