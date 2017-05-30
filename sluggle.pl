@@ -132,7 +132,7 @@ sub _start {
             },
             In_channels     => 1,
             In_private      => $CONF->param('private'),
-            Auth_sub        => \&check_if_bot,
+            Auth_sub        => \&is_not_bot,
             Ignore_unauthorized => 1,
             Addressed       => $CONF->param('addressed'),
             Prefix          => $CONF->param('prefix'),
@@ -296,7 +296,7 @@ sub irc_botcmd_op {
     my ($kernel, $who, $channel, $request) = @_[KERNEL, ARG0 .. ARG2];
     my $nick = ( split /!/, $who )[0];
 
-    if ( check_if_op($channel, $nick) ) {
+    if ( is_op($channel, $nick) ) {
         $irc->yield( privmsg => $channel => "$nick: You are indeed a might op!");
     } else {
         $irc->yield( privmsg => $channel => "$nick: Only channel operators may do that!");
@@ -332,7 +332,7 @@ sub irc_botcmd_ignore {
     my $nick            = ( split /!/, $who )[0];
     my ($action, $bot)  = split(/\s+/, $request);
 
-    unless ( ( check_if_op($channel, $nick) ) or ($nick eq $bot) ) {
+    unless ( ( is_op($channel, $nick) ) or ($nick eq $bot) ) {
         $irc->yield( privmsg => $channel => "$nick: Only channel operators may do that!");
         return;
     }
@@ -390,7 +390,8 @@ sub irc_public {
     my $nick = ( split /!/, $who )[0];
     my $channel = $where->[0];
 
-    unless (check_if_bot('', $nick) ) {
+    if ( config::is_bot($CONF, $nick) ) {
+        warn "blocked";
         return;
     }
 
@@ -744,26 +745,31 @@ sub search {
 
 }
 
-sub check_if_bot {
+sub is_not_bot {
     my ($object, $nick, $where, $command, $args) = @_;
 
-    if ( config::is_bot($CONF, $nick) ) {
-        warn "Blocked";
+    if ( config::is_bot($conf, $nick) ) {
+        warn "blocked";
         return 0;
     }
 
     return 1;
 }
 
-sub check_if_op {
-  my ($chan, $nick) = @_;
-  return 0 unless $nick;
-  if (($irc->is_channel_operator($chan, $nick)) or 
-      ($irc->nick_channel_modes($chan, $nick) =~ m/[aoq]/)) {
-    return 1;
+sub is_op {
+    my ($chan, $nick) = @_;
+
+    return 0 unless $nick;
+  
+    if (
+            ($irc->is_channel_operator($chan, $nick))
+            or (($irc->nick_channel_modes($chan, $nick) =~ m/[aoq]/))
+    ) {
+
+        return 1;
+
   }
-  else {
-    return 0;
-  }
+
+  return 0;
 }
 
