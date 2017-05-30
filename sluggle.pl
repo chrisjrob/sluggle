@@ -484,7 +484,7 @@ sub mediawiki {
         return "Wikipedia command should be followed by text to be searched";
     }
 
-    my ($retcode, $search_response) = search::duckduckgo('site:en.wikipedia.org ' . $request);
+    my ($retcode, $search_response) = search::duckduckgo($CONF, 'site:en.wikipedia.org ' . $request);
 
     my $url     = $search_response->{'url'};
     my $title   = $search_response->{'title'};
@@ -544,7 +544,7 @@ sub find {
 
     # Assume string search
     } else {
-        ($retcode, $response) = search::duckduckgo($request);
+        ($retcode, $response) = search::duckduckgo($CONF, $request);
         $url     = $response->{'url'};
         $title   = $response->{'title'};
         $error   = $response->{'error'};

@@ -81,6 +81,8 @@ sub duckduckgo {
     my $zeroclickinfo;
     eval { $zeroclickinfo = $duck->zeroclickinfo($query); };
 
+    warn "Query: $query";
+
     use Data::Dumper;
     warn Dumper( $zeroclickinfo );
 
