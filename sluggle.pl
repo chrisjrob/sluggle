@@ -507,7 +507,7 @@ sub find {
         $url     = $request;
         $title   = get_data($request);
         $shorten = shorten($url);
-        $wot     = wot::lookup($url);
+        $wot     = wot::lookup($CONF, $url);
 
     # Assume string search
     } else {
