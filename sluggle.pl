@@ -472,6 +472,9 @@ sub irc_public {
 # If response is a Wikipedia link, then do a 
 # Wikimedia lookup instead
 
+# Cannot properly test this function and related mediawiki module 
+# until search api is working
+
 sub mediawiki {
     my $request = shift;
 
