@@ -34,6 +34,7 @@ sub lookup {
     my $ref;
     eval { $ref = JSON::decode_json( $response2->{'_content'} ); };
 
+    my $response;
     if ( $@ ) {
         warn "\n\n-------------- DEBUG ------------------\n";
         warn "Wikipedia has returned a malformed JSON response\n";
@@ -51,7 +52,6 @@ sub lookup {
     $extract =~ s/[^[:ascii:]]//g;
 
     return ($extract, $response);
-
 }
 
 sub mediawiki_api_url {
