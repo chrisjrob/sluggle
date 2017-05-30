@@ -22,7 +22,7 @@ use warnings;
 use utf8;
 
 use lib './lib';
-use config qw(:ALL);
+use config;
 
 use POE;
 use POE::Component::IRC;
