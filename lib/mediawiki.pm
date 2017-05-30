@@ -16,6 +16,8 @@ our %EXPORT_TAGS = (
 );
 
 sub lookup {
+    my $url = shift;
+
     my $apiurl = mediawiki_api_url($url);
 
     use LWP::UserAgent;
