@@ -31,6 +31,7 @@ use lib './lib';
 use config;
 use image;
 use mediawiki;
+use search;
 use wot;
 use wolfram;
 use utility;
@@ -483,11 +484,11 @@ sub mediawiki {
         return "Wikipedia command should be followed by text to be searched";
     }
 
-    my ($retcode, $search_response) = search('site:en.wikipedia.org ' . $request);
+    my ($retcode, $search_response) = search::duckduckgo('site:en.wikipedia.org ' . $request);
 
-    my $url     = $search_response->{'Url'};
-    my $title   = $search_response->{'Title'};
-    my $error   = $search_response->{'Error'};
+    my $url     = $search_response->{'url'};
+    my $title   = $search_response->{'title'};
+    my $error   = $search_response->{'error'};
 
     unless (defined $url) {
         if (defined $error) {
@@ -543,10 +544,10 @@ sub find {
 
     # Assume string search
     } else {
-        ($retcode, $response) = search($request);
-        $url     = $response->{'Url'};
-        $title   = $response->{'Title'};
-        $error   = $response->{'Error'};
+        ($retcode, $response) = search::duckduckgo($request);
+        $url     = $response->{'url'};
+        $title   = $response->{'title'};
+        $error   = $response->{'error'};
         $shorten = $url; # Important - don't shorten URL on plain web search
     }
 
@@ -653,97 +654,6 @@ sub get_data {
 
         return "File type $type";
     }
-
-}
-
-sub search {
-    my $query = shift;
-
-    my $retcode = 1;
-
-    # Remove any non-ascii characters
-    $query =~ s/[^[:ascii:]]//g;
-
-    my $account_key = $CONF->param('key');
-    my $serviceurl  = $CONF->param('url');
-    my $searchurl   = $serviceurl . '%27' . $query . '%27';
-
-    use LWP::UserAgent;
-
-    my $ua = LWP::UserAgent->new;
-    $ua->timeout(20);
-    $ua->env_proxy;
-
-    my $req = HTTP::Request->new( GET => $searchurl );
-    $req->authorization_basic('', $account_key);
-    my $response = $ua->request( $req );
-
-    # use Data::Dumper;
-    # warn Dumper( $response->{'_content'} );
-
-# RAW
-
-# '_content' => '{
-#   "d":{
-#       "results":
-#           [
-#               {
-#                   "__metadata": {
-#                       "uri":"https://api.datamarket.azure.com/Data.ashx/Bing/SearchWeb/v1/Web?Query=\\u0027Surrey LUG\\u0027&Latitude=51.2362&Longitude=-0.5704&$skip=# 0&$top=1",
-#                       "type":"WebResult"
-#                   },
-#                   "ID":"xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-#                   "Title":"Surrey Linux User Group",
-#                   "Description":"Surrey LUG is a friendly Linux user group. If you have any interest in Linux, GNU (or related systems such as *BSD, Solaris, OpenSolaris, etc) and are based in Surrey ...",
-#                   "DisplayUrl":"surrey.lug.org.uk",
-#                   "Url":"http://surrey.lug.org.uk/"
-#               }
-#           ],
-#           "__next":"https://api.datamarket.azure.com/Data.ashx/Bing/SearchWeb/v1/Web?Query=\\u0027Surrey%20LUG\\u0027&Latitude=51.2362&Longitude=-0.5704&$skip=1&$top=1"
-#       }
-#   }',
-
-    use JSON;
-
-    my $ref;
-    eval { $ref = JSON::decode_json( $response->{'_content'} ); };
-
-    if ( $@ ) {
-        warn "\n\n-------------- DEBUG ------------------\n";
-        warn "Bing has returned a malformed JSON response\n";
-        warn "Query: $query\n";
-        warn "Response: $@\n";
-
-        $retcode = 0;
-        $response->{'Error'} = "Bing returned $@";
-
-        return $retcode, $response;
-    }
-
-    # warn Dumper( $ref );
-
-# JSON:
-
-#$VAR1 = { 
-#          'd' => { 
-#                   '__next' => 'https://api.datamarket.azure.com/Data.ashx/Bing/SearchWeb/v1/Web?Query=\'Surrey%20LUG\'&Latitude=51.2362&Longitude=-0.5704&$skip=1&$top=1',
-#                   'results' => [ 
-#                                  { 
-#                                    'ID' => 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
-#                                    '__metadata' => { 
-#                                                      'type' => 'WebResult',
-#                                                      'uri' => 'https://api.datamarket.azure.com/Data.ashx/Bing/SearchWeb/v1/Web?Query=\'Surrey LUG\'&Latitude=51.2362&Longitude=-0.5704&$skip=0&$top=1'
-#                                                    },
-#                                    'Url' => 'http://surrey.lug.org.uk/',
-#                                    'Description' => 'Surrey LUG is a friendly Linux user group. If you have any interest in Linux, GNU (or related systems such as *BSD, Solaris, OpenSolaris, etc) and are based in Surrey ...',
-#                                    'DisplayUrl' => 'surrey.lug.org.uk',
-#                                    'Title' => 'Surrey Linux User Group'
-#                                  }
-#                                ]
-#                 }
-#        };
-
-    return( $retcode, $ref->{'d'}{'results'}[0] );
 
 }
 
