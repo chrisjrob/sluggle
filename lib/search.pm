@@ -17,7 +17,7 @@ our %EXPORT_TAGS = (
 );
 
 sub bing {
-    my ($conf, $query) = shift;
+    my ($conf, $query) = @_;
 
     my $retcode = 1;
 
@@ -68,6 +68,68 @@ sub bing {
     return( $retcode, $results );
 }
 
+sub ddg {
+    my ($conf, $query) = @_;
+
+    my $retcode = 1;
+
+    # Remove any non-ascii characters
+    $query =~ s/[^[:ascii:]]//g;
+
+    warn "Query: $query";
+
+    my $searchurl = 
+       'https://'
+       . 'api.duckduckgo.com'
+       . '/?q='
+       . $query
+       . '&format=json&pretty=1&no_html=1&skip_disambig=1';
+
+    warn "$searchurl";
+
+    if ($searchurl !~ /microsoft/i) {
+        die;
+    }
+
+    use LWP::UserAgent;
+
+    my $ua = LWP::UserAgent->new;
+    $ua->timeout(20);
+    $ua->env_proxy;
+
+    my $req = HTTP::Request->new( GET => $searchurl );
+    my $response = $ua->request( $req );
+
+    use Data::Dumper;
+    warn Dumper( $response->{content} );
+
+    use JSON;
+
+    my $ref;
+    eval { $ref = JSON::decode_json( $response->{content} ); };
+
+    my $error;
+    if ( $@ ) {
+        warn "\n\n-------------- DEBUG ------------------\n";
+        warn "DuckDuckGo has returned a malformed JSON response\n";
+        warn "Query: $query\n";
+        warn "Response: $@\n";
+
+        $retcode = 0;
+        $error = "DuckDuckGo returned $@";
+
+        return $retcode, $response;
+    }
+
+    my $results = {
+        url         => $ref->{AbstractURL},
+        title       => $ref->{Heading},
+        error       => $error,
+    };
+
+    return( $retcode, $results );
+}
+
 sub duckduckgo {
     my ($conf, $query) = @_;
 
@@ -81,18 +143,29 @@ sub duckduckgo {
     my $zeroclickinfo;
     eval { $zeroclickinfo = $duck->zeroclickinfo($query); };
 
-    warn "Query: $query";
-
-    use Data::Dumper;
-    warn Dumper( $zeroclickinfo );
+    # use Data::Dumper;
+    # warn Dumper( $zeroclickinfo );
 
     my $results;
-    if ( $zeroclickinfo->hasresults ) {
+    if ( $zeroclickinfo->has_results ) {
+
+        my @results = @{ $zeroclickinfo->results };
+        
         $results = {
-            url         => $zeroclickinfo->results[0]{FirstURL},
-            title       => $zeroclickinfo->results[0]{Text},
+            url         => $results[0]->first_url,
+            title       => $results[0]->text,
             error       => '',
         };
+
+    } elsif ( $zeroclickinfo->has_abstract ) {
+
+        $results = {
+            url         => $zeroclickinfo->abstract_url,
+            title       => $zeroclickinfo->heading,
+            error       => '',
+        };
+
+
     } else {
         $retcode = 0;
         $results = {
