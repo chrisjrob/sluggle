@@ -99,7 +99,7 @@ sub duckduckgo {
         $retcode = 0;
         $error = "DuckDuckGo returned $@";
 
-        return $retcode, $response;
+        return $retcode, { error => $error };
     }
 
     my $results = {
