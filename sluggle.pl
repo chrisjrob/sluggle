@@ -29,6 +29,7 @@ use POE::Component::IRC::Plugin::Connector;
 
 use lib './lib';
 use config;
+use image;
 use wot;
 use wolfram;
 use utility;
