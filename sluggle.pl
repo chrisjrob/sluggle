@@ -750,7 +750,7 @@ sub search {
 sub is_not_bot {
     my ($object, $nick, $where, $command, $args) = @_;
 
-    if ( config::is_bot($conf, $nick) ) {
+    if ( config::is_bot($CONF, $nick) ) {
         warn "blocked";
         return 0;
     }
