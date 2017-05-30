@@ -483,11 +483,11 @@ sub mediawiki {
         return "Wikipedia command should be followed by text to be searched";
     }
 
-    my ($retcode, $response) = search('site:en.wikipedia.org ' . $request);
+    my ($retcode, $search_response) = search('site:en.wikipedia.org ' . $request);
 
-    my $url     = $response->{'Url'};
-    my $title   = $response->{'Title'};
-    my $error   = $response->{'Error'};
+    my $url     = $search_response->{'Url'};
+    my $title   = $search_response->{'Title'};
+    my $error   = $search_response->{'Error'};
 
     unless (defined $url) {
         if (defined $error) {
@@ -498,6 +498,8 @@ sub mediawiki {
     }
     
     my ($extract, $response) = mediawiki::lookup($url);
+
+    return($extract, $response);
 }
 
 sub is_wikipedia {
