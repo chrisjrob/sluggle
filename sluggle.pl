@@ -21,19 +21,22 @@ use strict;
 use warnings;
 use utf8;
 
-use lib './lib';
-use config;
-
 use POE;
 use POE::Component::IRC;
 use POE::Component::IRC::State;
 use POE::Component::IRC::Plugin::BotCommand;
 use POE::Component::IRC::Plugin::Connector;
 
+use lib './lib';
+use config;
+use wot;
+use wolfram;
+use utility;
+
 use vars qw( $CONF $LAG $REC );
 
 if ( (defined $ARGV[0]) and (-r $ARGV[0]) ) {
-    $CONF = get_config($ARGV[0]);
+    $CONF = config::get_config($ARGV[0]);
 } else {
     print "USAGE: sluggle.pl sluggle.conf\n";
     exit;
@@ -186,7 +189,7 @@ sub irc_invite {
     }
 
     # Add the channel to the list
-    $CONF = add_channel($CONF, $where);
+    $CONF = config::add_channel($CONF, $where);
 
     # we join our channels
     $irc->yield( join => $where );
@@ -201,7 +204,7 @@ sub irc_kick {
     my ($kernel, $kicker, $where, $kicked) = @_[KERNEL, ARG0 .. ARG2];
 
     # Remove the channel from the list
-    $CONF = remove_channel($CONF, $where);
+    $CONF = config::remove_channel($CONF, $where);
 
     # Restart the lag_o_meter
     $kernel->delay( 'lag_o_meter' => $LAG );
@@ -255,14 +258,14 @@ sub irc_botcmd_wot {
 
     }
 
-    my ($retcode, $error) = validate_address($request);
+    my ($retcode, $error) = utility::validate_address($request);
     if ($retcode == 0) {
         $irc->yield( privmsg => $channel => "$nick: $error");
         return;
     }
 
     my $wot;
-    eval { $wot = wot($request); };
+    eval { $wot = wot::lookup($CONF, $request); };
     $error = $@;
     warn "WoT $error" if $error;
 
@@ -313,7 +316,7 @@ sub irc_botcmd_wolfram {
         return;
     }
 
-    my $response = wolfram($request);
+    my $response = wolfram::lookup($CONF, $request);
     $irc->yield( privmsg => $channel => "$nick: $response.");
 
     # Restart the lag_o_meter
@@ -339,11 +342,11 @@ sub irc_botcmd_ignore {
 
     my $bots;
     if ($action =~ /^add$/i) {
-        $bots = add_bot($CONF, $bot);
+        $bots = config::add_bot($CONF, $bot);
     } elsif ($action =~ /^(?:del|delete|remove)$/i) {
-        $bots = remove_bot($CONF, $bot);
+        $bots = config::remove_bot($CONF, $bot);
     } else {
-        $bots = list_bots();
+        $bots = config::list_bots($CONF);
     }
 
     $irc->yield( privmsg => $channel => "$nick: Bots - $bots");
@@ -464,69 +467,6 @@ sub irc_public {
 
 # Start of IRC slave functions
 
-# Validate URL and return any error
-# Includes important security checks
-
-sub validate_address {
-    my $request = shift;
-
-    my $count = (my @elements) = split(/\s+/, $request);
-
-    my $retcode = 1; # success
-    my $error;
-
-    # Basic checks
-    if ($count > 1) {
-        $retcode = 0;
-        $error = 'Spaces are not permitted';
-        return $retcode, $error;
-
-    } elsif ($request !~ m|(?:([^:/?#]+):)?(?://([^/?#]*))?([^?#]*)(?:\?([^#]*))?(?:#(.*))?|) {
-        $retcode = 0;
-        $error = 'That does not look like a URL';
-        return $retcode, $error;
-
-    }
-
-    use Regexp::IPv6 qw($IPv6_re);
-    use Regexp::Common qw /net/;
-    my $IPv4_re = $RE{net}{IPv4};
-
-    use URI::URL;
-    my $url = new URI::URL $request;
-    my ($host, $port);
-
-    eval { $port = $url->port; };
-    warn "Port not found $@" if $@;
-
-    eval { $host = $url->host; };
-    warn "Host not found $@" if $@;
-
-    if ($@) {
-        $retcode = 0;
-        $error = "Host not found $@";
-
-    } elsif ( (defined $port) and ($port ne '80' ) and ($port ne '443') ) {
-        $retcode = 0;
-        $error = 'Non-standard HTTP ports are not permitted';
-
-    } elsif ( $request =~ m/^(?:https?:\/\/)?$IPv4_re/i ) {
-        $retcode = 0;
-        $error = 'IP addresses are not permitted';
-
-    } elsif ( $request =~ m/^(?:https?:\/\/)?$IPv6_re/i ) {
-        $retcode = 0;
-        $error = 'IP addresses are not permitted';
-
-    } elsif ( $request =~ m/^(?:https?:\/\/)?[\/\.]+/i ) {
-        $retcode = 0;
-        $error = 'URLs starting with a file path are not permitted';
-
-    }
-
-    return $retcode, $error;
-}
-
 # If response is a Wikipedia link, then do a 
 # Wikimedia lookup instead
 
@@ -551,128 +491,6 @@ sub is_wikipedia {
     return 'wikipedia', \@lines;
 }
 
-sub wolfram {
-    my $request = shift;
-
-    if ((not defined $request) or ($request =~ /^\s*$/)) {
-        return "Command Wolfram should be followed by a request";
-    }
-
-    use Net::WolframAlpha; 
-    use Text::Unaccent::PurePerl;
-
-    # Instantiate WA object with your appid.
-    my $wa = Net::WolframAlpha->new (
-        appid => $CONF->param('wolfram_appid')
-    );
-
-    # Send any inputs paramters in input hash (unescaped).
-    my $query = $wa->query(
-        'input' =>  unac_string('utf-8',$request),
-        'scantimeout' => 3,
-    );
-
-    my $response;
-
-    if ($query->success) {
-
-        # Interpretation
-        my $pod                 = $query->pods->[0];
-        my $subpod              = $pod->subpods->[0];
-        my $search_plaintext    = superchomp( $subpod->plaintext );
-
-        if (defined $search_plaintext) {
-            $response = "Interpreted as $search_plaintext ";
-        } else {
-            $response = "Unable to interpret request ";
-        }
-
-        my ($result_title, $result_subtitle, $result_plaintext);
-
-        # Results
-        $pod = $query->pods->[1];
-
-        if (defined $pod) {
-            $result_title        = $pod->title;
-            $subpod              = $pod->subpods->[0];
-            $response .= $result_title . ' ';
-        }
-
-        if (defined $subpod) {
-            $result_subtitle     = $subpod->title;
-            $result_plaintext    = superchomp( $subpod->plaintext );
-            $response .= $result_subtitle . ' '
-                    . $result_plaintext;
-        }
-
-    # No success, but no error either.
-    } elsif (!$query->error) {
-        if ($query->didyoumeans->count) {
-            my $didyoumean = $query->didyoumeans->didyoumean->[0];
-            $response = 'Did you mean: ' . $didyoumean->text->{content};
-        } else {
-            $response =  "No results.";
-        }
-
-    # Error contacting WA.
-    } elsif ($wa->error) {
-        $response = "Net::WolframAlpha error: "
-                    . $wa->errmsg;
-
-    # Error returned by WA.    
-    } elsif ($query->error) {
-        $response = "WA error "
-                    . $query->error->code
-                    . ": "
-                    . $query->error->msg;
-
-    }
-
-    $response =~ s/\s{2,}/ /g;
-
-    return $response;
-}
-
-sub strip_non_alphanumerics {
-    my $string = shift;
-
-    my $alphanumerics = $string;
-    $alphanumerics =~ s/\W+/-/g;
-
-    return $alphanumerics;
-}
-
-sub check_for_server_ip {
-    my $request = shift;
-
-    use Net::Address::IP::Local;
-
-    my $ipv4 = Net::Address::IP::Local->public_ipv4;
-    my $ipv6 = Net::Address::IP::Local->public_ipv6;
-
-    $request =~ s/(?:$ipv4|$ipv6)/censored/gi;
-
-    # That really should be it, but what if the delimiters
-    # are changed to dashes or anything
-    # Extra check stripping non-alphanumerics
-
-    my $request_an = strip_non_alphanumerics($request);
-    my $ipv4_an    = strip_non_alphanumerics($ipv4);
-    my $ipv6_an    = strip_non_alphanumerics($ipv6);
-
-    if ($request_an =~ s/(?:$ipv4_an|$ipv6_an)/censored/gi) {
-        # If there is still a hidden IP address
-        # you'd better return the stripped and 
-        # validated output
-        return $request_an;
-    } else {
-        # All good
-        return $request;
-    }
-    
-    return;
-}
-
 sub find {
     my $request = shift;
 
@@ -681,7 +499,7 @@ sub find {
 
     # Web address search
     if ($request =~ /^https?:\/\//i) {
-        ($retcode, $error) = validate_address($request);
+        ($retcode, $error) = utility::validate_address($request);
         if ($retcode == 0) {
             return $error;
         }
@@ -689,7 +507,7 @@ sub find {
         $url     = $request;
         $title   = get_data($request);
         $shorten = shorten($url);
-        $wot     = wot($url);
+        $wot     = wot::lookup($url);
 
     # Assume string search
     } else {
@@ -735,7 +553,7 @@ sub find {
     my $count = @elements;
     if ($count != 0) {
         my $message = join(' - ', @elements);
-        $message = check_for_server_ip($message);
+        $message = utility::check_for_server_ip($message);
         return ($message . '.');
     } else {
         # Do nothing, hopefully no-one will notice
@@ -743,47 +561,6 @@ sub find {
 
     return;
 
-}
-
-sub wot {
-    my $request = shift;
-
-    if ((not defined $request) or ($request =~ /^\s*$/)) {
-        return "WoT command should be followed by domain to be checked";
-    }
-
-    use URI::URL;
-    my $url = new URI::URL $request;
-    my $host;
-    eval { $host = $url->host; };
-    warn "Host not found $@" if $@;
-
-    use Net::WOT;
-    my $wot = Net::WOT->new;
-
-    my %wot;
-    eval {
-        %wot = $wot->get_reputation($host);
-    };
-    warn "Get WoT Reputation failed $@" if $@;
-
-    # the %wot hash seems oddly structured
-    my $mywot = {
-        'trustworthiness_description'       => $wot->trustworthiness_description,
-        'trustworthiness_score'             => $wot->trustworthiness_score,
-        'trustworthiness_confidence'        => $wot->trustworthiness_confidence,
-        'vendor_reliability_description'    => $wot->vendor_reliability_description,
-        'vendor_reliability_score'          => $wot->vendor_reliability_score,
-        'vendor_reliability_confidence'     => $wot->vendor_reliability_confidence,
-        'privacy_description'               => $wot->privacy_description,
-        'privacy_score'                     => $wot->privacy_score,
-        'privacy_confidence'                => $wot->privacy_confidence,
-        'child_safety_description'          => $wot->child_safety_description,
-        'child_safety_score'                => $wot->child_safety_score,
-        'child_safety_confidence'           => $wot->child_safety_confidence
-    };
-
-    return $mywot;
 }
 
 sub shorten {
@@ -1147,7 +924,7 @@ sub search {
 sub check_if_bot {
     my ($object, $nick, $where, $command, $args) = @_;
 
-    if ( is_bot($CONF, $nick) ) {
+    if ( config::is_bot($CONF, $nick) ) {
         warn "Blocked";
         return 0;
     }
@@ -1165,14 +942,5 @@ sub check_if_op {
   else {
     return 0;
   }
-}
-
-# Chomp to cope with Windows line endings
-
-sub superchomp {
-    my $string = shift;
-    return if (not defined $string);
-    $string =~ s/[\r\n]//g;
-    return $string;
 }
 
