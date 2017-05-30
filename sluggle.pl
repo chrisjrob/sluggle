@@ -28,10 +28,9 @@ use POE::Component::IRC::Plugin::BotCommand;
 use POE::Component::IRC::Plugin::Connector;
 
 use vars qw( $CONF $LAG $REC );
-use Config::Simple;
 
 if ( (defined $ARGV[0]) and (-r $ARGV[0]) ) {
-    $CONF = new Config::Simple($ARGV[0]);
+    $CONF = get_config($ARGV[0]);
 } else {
     print "USAGE: sluggle.pl sluggle.conf\n";
     exit;
@@ -75,6 +74,30 @@ POE::Session->create(
 );
 
 $poe_kernel->run();
+
+# Start of IRC Bot Commands
+# declared in POE::Session->create
+
+sub _default {
+    my ($kernel, $event, $args) = @_[KERNEL, ARG0 .. $#_];
+    my @output = ( "$event: " );
+
+    for my $arg (@$args) {
+        if ( ref $arg eq 'ARRAY' ) {
+            push( @output, '[' . join(', ', @$arg ) . ']' );
+        }
+        else {
+            push ( @output, "'$arg'" );
+        }
+    }
+
+    print join ' ', @output, "\n";
+
+    # Restart the lag_o_meter
+    $kernel->delay( 'lag_o_meter' => $LAG );
+
+    return;
+}
 
 sub _start {
     my ($kernel, $heap) = @_[KERNEL, HEAP];
@@ -149,36 +172,6 @@ sub irc_001 {
     return;
 }
 
-sub irc_kick {
-    my ($kernel, $kicker, $where, $kicked) = @_[KERNEL, ARG0 .. ARG2];
-
-    # Remove the channel to the list
-    my @channels = $CONF->param('channels');
-
-    my @newchannels;
-    foreach my $channel (@channels) {
-        if ($channel eq $where) {
-            next;
-        } else {
-            push(@newchannels, $channel);
-        }
-    }
-
-    my $count = @newchannels;
-    if ($count == 0) {
-        $CONF->delete('channels');
-    } else {
-        $CONF->param('channels', \@newchannels);
-    }
-
-    $CONF->save();
-
-    # Restart the lag_o_meter
-    $kernel->delay( 'lag_o_meter' => $LAG );
-
-    return;
-}
-
 sub irc_invite {
     my ($kernel, $who, $where) = @_[KERNEL, ARG0 .. ARG1];
     my $nick = ( split /!/, $who )[0];
@@ -190,13 +183,193 @@ sub irc_invite {
     }
 
     # Add the channel to the list
-    my @channels = $CONF->param('channels');
-    push(@channels, $where);
-    $CONF->param('channels', \@channels);
-    $CONF->save();
+    $CONF = add_channel($CONF, $where);
 
     # we join our channels
     $irc->yield( join => $where );
+
+    # Restart the lag_o_meter
+    $kernel->delay( 'lag_o_meter' => $LAG );
+
+    return;
+}
+
+sub irc_kick {
+    my ($kernel, $kicker, $where, $kicked) = @_[KERNEL, ARG0 .. ARG2];
+
+    # Remove the channel from the list
+    $CONF = remove_channel($CONF, $where);
+
+    # Restart the lag_o_meter
+    $kernel->delay( 'lag_o_meter' => $LAG );
+
+    return;
+}
+
+sub irc_botcmd_find {
+    my ($kernel, $who, $channel, $request) = @_[KERNEL, ARG0 .. ARG2];
+    my $nick = ( split /!/, $who )[0];
+
+    if ((not defined $request) or ($request =~ /^\s*$/)) {
+        $irc->yield( privmsg => $channel => "$nick: Command find should be followed by text to be searched.");
+        return;
+    }
+
+    my $response = find($request);
+
+    # If response is a wikipedia response, use wikipedia
+    my ($type, $lines) = is_wikipedia($request, $response);
+    if ($type eq 'wikipedia') {
+        $irc->yield( privmsg => $channel => "$nick: " . $$lines[0]);
+        if (defined $$lines[1]) {
+            $irc->yield( privmsg => $channel => $$lines[1]);
+        }
+
+    # Return the original result
+    } else {
+        $irc->yield( privmsg => $channel => "$nick: " . $response);
+
+    }
+
+    # Restart the lag_o_meter
+    $kernel->delay( 'lag_o_meter' => $LAG );
+
+    return;
+}
+
+sub irc_botcmd_wot {
+    my ($kernel, $who, $channel, $request) = @_[KERNEL, ARG0 .. ARG2];
+    my $nick = ( split /!/, $who )[0];
+
+    warn "========================= $request =======================";
+
+    if ((not defined $request) or ($request =~ /^\s*$/)) {
+        $irc->yield( privmsg => $channel => "$nick: Command WoT should be followed by domain to be checked.");
+        return;
+
+    } elsif ($request !~ /^https?:\/\//i) {
+        $request = 'http://' . $request;
+
+    }
+
+    my ($retcode, $error) = validate_address($request);
+    if ($retcode == 0) {
+        $irc->yield( privmsg => $channel => "$nick: $error");
+        return;
+    }
+
+    my $wot;
+    eval { $wot = wot($request); };
+    $error = $@;
+    warn "WoT $error" if $error;
+
+    if ((defined $wot) and ($wot->{trustworthiness_score} =~ /\d/) ) {
+        $irc->yield( privmsg => $channel => "$nick: Site reputation is "
+           . $wot->{trustworthiness_description}
+           . ' (' 
+           . $wot->{trustworthiness_score} 
+           . ').'
+        );
+
+    } elsif ((defined $error) and ($error ne '')) {
+        $irc->yield( privmsg => $channel => "$nick: WoT $error.");
+
+    } else {
+        $irc->yield( privmsg => $channel => "$nick: WoT did not return any site reputation.");
+    }
+
+    # Restart the lag_o_meter
+    $kernel->delay( 'lag_o_meter' => $LAG );
+
+    return;
+}
+
+sub irc_botcmd_op {
+    my ($kernel, $who, $channel, $request) = @_[KERNEL, ARG0 .. ARG2];
+    my $nick = ( split /!/, $who )[0];
+
+    if ( check_if_op($channel, $nick) ) {
+        $irc->yield( privmsg => $channel => "$nick: You are indeed a might op!");
+    } else {
+        $irc->yield( privmsg => $channel => "$nick: Only channel operators may do that!");
+    } 
+
+    # Restart the lag_o_meter
+    $kernel->delay( 'lag_o_meter' => $LAG );
+
+    return;
+
+}
+
+sub irc_botcmd_wolfram {
+    my ($kernel, $who, $channel, $request) = @_[KERNEL, ARG0 .. ARG2];
+    my $nick = ( split /!/, $who )[0];
+
+    if ((not defined $request) or ($request =~ /^\s*$/)) {
+        $irc->yield( privmsg => $channel => "$nick: Command Wolfram should be followed by text to be searched.");
+        return;
+    }
+
+    my $response = wolfram($request);
+    $irc->yield( privmsg => $channel => "$nick: $response.");
+
+    # Restart the lag_o_meter
+    $kernel->delay( 'lag_o_meter' => $LAG );
+
+    return;
+}
+
+sub irc_botcmd_ignore {
+    my ($kernel, $who, $channel, $request) = @_[KERNEL, ARG0 .. ARG2];
+    my $nick            = ( split /!/, $who )[0];
+    my ($action, $bot)  = split(/\s+/, $request);
+
+    unless ( ( check_if_op($channel, $nick) ) or ($nick eq $bot) ) {
+        $irc->yield( privmsg => $channel => "$nick: Only channel operators may do that!");
+        return;
+    }
+
+    if ((not defined $request) or ($request =~ /^\s*$/)) {
+        $irc->yield( privmsg => $channel => "$nick: Command ignore should be followed by a nick.");
+        return;
+    }
+
+    my $bots;
+    if ($action =~ /^add$/i) {
+        $bots = add_bot($CONF, $bot);
+    } elsif ($action =~ /^(?:del|delete|remove)$/i) {
+        $bots = remove_bot($CONF, $bot);
+    } else {
+        $bots = list_bots();
+    }
+
+    $irc->yield( privmsg => $channel => "$nick: Bots - $bots");
+
+    # Restart the lag_o_meter
+    $kernel->delay( 'lag_o_meter' => $LAG );
+
+    return;
+}
+
+sub irc_botcmd_wikipedia {
+    my ($kernel, $who, $channel, $request) = @_[KERNEL, ARG0 .. ARG2];
+    my $nick = ( split /!/, $who )[0];
+
+    if ((not defined $request) or ($request =~ /^\s*$/)) {
+        $irc->yield( privmsg => $channel => "$nick: Command Wikipedia should be followed by text to be searched.");
+        return;
+    }
+
+    my ($extract, $response) = mediawiki($request);
+    my $title = $response->{'Title'};
+    $title =~ s/\s+\-.+$//;
+
+    if ( (defined $response->{'Title'}) and (defined $response->{'Url'}) ) {
+        $irc->yield( privmsg => $channel => "$nick: $title - $response->{'Url'}");
+        $irc->yield( privmsg => $channel => $extract);
+    } else {
+        $irc->yield( privmsg => $channel => "$nick: $extract");
+    }
 
     # Restart the lag_o_meter
     $kernel->delay( 'lag_o_meter' => $LAG );
@@ -284,27 +457,12 @@ sub irc_public {
     return;
 }
 
-# We registered for all events, this will produce some debug info.
-sub _default {
-    my ($kernel, $event, $args) = @_[KERNEL, ARG0 .. $#_];
-    my @output = ( "$event: " );
+# End of IRC Bot Commands
 
-    for my $arg (@$args) {
-        if ( ref $arg eq 'ARRAY' ) {
-            push( @output, '[' . join(', ', @$arg ) . ']' );
-        }
-        else {
-            push ( @output, "'$arg'" );
-        }
-    }
+# Start of IRC slave functions
 
-    print join ' ', @output, "\n";
-
-    # Restart the lag_o_meter
-    $kernel->delay( 'lag_o_meter' => $LAG );
-
-    return;
-}
+# Validate URL and return any error
+# Includes important security checks
 
 sub validate_address {
     my $request = shift;
@@ -366,6 +524,9 @@ sub validate_address {
     return $retcode, $error;
 }
 
+# If response is a Wikipedia link, then do a 
+# Wikimedia lookup instead
+
 sub is_wikipedia {
     my ($request, $result) = @_;
 
@@ -385,57 +546,6 @@ sub is_wikipedia {
     push(@lines, $extract);
 
     return 'wikipedia', \@lines;
-}
-
-sub irc_botcmd_wikipedia {
-    my ($kernel, $who, $channel, $request) = @_[KERNEL, ARG0 .. ARG2];
-    my $nick = ( split /!/, $who )[0];
-
-    if ((not defined $request) or ($request =~ /^\s*$/)) {
-        $irc->yield( privmsg => $channel => "$nick: Command Wikipedia should be followed by text to be searched.");
-        return;
-    }
-
-    my ($extract, $response) = mediawiki($request);
-    my $title = $response->{'Title'};
-    $title =~ s/\s+\-.+$//;
-
-    if ( (defined $response->{'Title'}) and (defined $response->{'Url'}) ) {
-        $irc->yield( privmsg => $channel => "$nick: $title - $response->{'Url'}");
-        $irc->yield( privmsg => $channel => $extract);
-    } else {
-        $irc->yield( privmsg => $channel => "$nick: $extract");
-    }
-
-    # Restart the lag_o_meter
-    $kernel->delay( 'lag_o_meter' => $LAG );
-
-    return;
-}
-
-sub irc_botcmd_wolfram {
-    my ($kernel, $who, $channel, $request) = @_[KERNEL, ARG0 .. ARG2];
-    my $nick = ( split /!/, $who )[0];
-
-    if ((not defined $request) or ($request =~ /^\s*$/)) {
-        $irc->yield( privmsg => $channel => "$nick: Command Wolfram should be followed by text to be searched.");
-        return;
-    }
-
-    my $response = wolfram($request);
-    $irc->yield( privmsg => $channel => "$nick: $response.");
-
-    # Restart the lag_o_meter
-    $kernel->delay( 'lag_o_meter' => $LAG );
-
-    return;
-}
-
-sub superchomp {
-    my $string = shift;
-    return if (not defined $string);
-    $string =~ s/[\r\n]//g;
-    return $string;
 }
 
 sub wolfram {
@@ -518,145 +628,6 @@ sub wolfram {
     $response =~ s/\s{2,}/ /g;
 
     return $response;
-}
-
-sub irc_botcmd_op {
-    my ($kernel, $who, $channel, $request) = @_[KERNEL, ARG0 .. ARG2];
-    my $nick = ( split /!/, $who )[0];
-
-    if ( check_if_op($channel, $nick) ) {
-        $irc->yield( privmsg => $channel => "$nick: You are indeed a might op!");
-    } else {
-        $irc->yield( privmsg => $channel => "$nick: Only channel operators may do that!");
-    } 
-
-    # Restart the lag_o_meter
-    $kernel->delay( 'lag_o_meter' => $LAG );
-
-    return;
-
-}
-
-sub irc_botcmd_ignore {
-    my ($kernel, $who, $channel, $request) = @_[KERNEL, ARG0 .. ARG2];
-    my $nick            = ( split /!/, $who )[0];
-    my ($action, $bot)  = split(/\s+/, $request);
-
-    unless ( ( check_if_op($channel, $nick) ) or ($nick eq $bot) ) {
-        $irc->yield( privmsg => $channel => "$nick: Only channel operators may do that!");
-        return;
-    }
-
-    if ((not defined $request) or ($request =~ /^\s*$/)) {
-        $irc->yield( privmsg => $channel => "$nick: Command ignore should be followed by a nick.");
-        return;
-    }
-
-    my $bots;
-    if ($action =~ /^add$/i) {
-        $bots = addbot($bot);
-    } elsif ($action =~ /^(?:del|delete|remove)$/i) {
-        $bots = delbot($bot);
-    } else {
-        $bots = listbot();
-    }
-
-    $irc->yield( privmsg => $channel => "$nick: Bots - $bots");
-
-    # Restart the lag_o_meter
-    $kernel->delay( 'lag_o_meter' => $LAG );
-
-    return;
-}
-
-sub filter_unique {
-    my @array = @_;
-
-    my %unique;
-    foreach my $element (@array) {
-        $unique{$element} = 1;
-    }
-
-    my @unique = sort keys %unique;
-
-    return @unique;
-}
-
-sub listbot {
-    my @bots = $CONF->param('bots');
-    my $bots = join(', ', @bots);
-    return $bots;
-}
-
-sub addbot {
-    my $request = shift;
-
-    # Adds bot to the list of nicks to be ignored
-    # This is intended to prevent bot wars
-    # but equally could be used to stop a particular nick
-    # from using the bot
-
-    my @bots = $CONF->param('bots');
-
-    my @unique = filter_unique(@bots, $request);
-
-    $CONF->param('bots', \@unique);
-    $CONF->save();
-
-    my $bots = join(', ', @unique);
-
-    return $bots;
-}
-
-sub delbot {
-    my $request = shift;
-
-    # Removes bot from list of nicks to be ignored
-    # This is intended to prevent bot wars
-    # but equally could be used to stop a particular nick
-    # from using the bot
-
-    my @bots = $CONF->param('bots');
-
-    my @newbots = grep { $_ ne $request } @bots;
-
-    $CONF->param('bots', \@newbots);
-    $CONF->save();
-
-    my $bots = join(', ', @newbots);
-
-    return $bots;
-}
-
-sub irc_botcmd_find {
-    my ($kernel, $who, $channel, $request) = @_[KERNEL, ARG0 .. ARG2];
-    my $nick = ( split /!/, $who )[0];
-
-    if ((not defined $request) or ($request =~ /^\s*$/)) {
-        $irc->yield( privmsg => $channel => "$nick: Command find should be followed by text to be searched.");
-        return;
-    }
-
-    my $response = find($request);
-
-    # If response is a wikipedia response, use wikipedia
-    my ($type, $lines) = is_wikipedia($request, $response);
-    if ($type eq 'wikipedia') {
-        $irc->yield( privmsg => $channel => "$nick: " . $$lines[0]);
-        if (defined $$lines[1]) {
-            $irc->yield( privmsg => $channel => $$lines[1]);
-        }
-
-    # Return the original result
-    } else {
-        $irc->yield( privmsg => $channel => "$nick: " . $response);
-
-    }
-
-    # Restart the lag_o_meter
-    $kernel->delay( 'lag_o_meter' => $LAG );
-
-    return;
 }
 
 sub strip_non_alphanumerics {
@@ -769,53 +740,6 @@ sub find {
 
     return;
 
-}
-
-sub irc_botcmd_wot {
-    my ($kernel, $who, $channel, $request) = @_[KERNEL, ARG0 .. ARG2];
-    my $nick = ( split /!/, $who )[0];
-
-    warn "========================= $request =======================";
-
-    if ((not defined $request) or ($request =~ /^\s*$/)) {
-        $irc->yield( privmsg => $channel => "$nick: Command WoT should be followed by domain to be checked.");
-        return;
-
-    } elsif ($request !~ /^https?:\/\//i) {
-        $request = 'http://' . $request;
-
-    }
-
-    my ($retcode, $error) = validate_address($request);
-    if ($retcode == 0) {
-        $irc->yield( privmsg => $channel => "$nick: $error");
-        return;
-    }
-
-    my $wot;
-    eval { $wot = wot($request); };
-    $error = $@;
-    warn "WoT $error" if $error;
-
-    if ((defined $wot) and ($wot->{trustworthiness_score} =~ /\d/) ) {
-        $irc->yield( privmsg => $channel => "$nick: Site reputation is "
-           . $wot->{trustworthiness_description}
-           . ' (' 
-           . $wot->{trustworthiness_score} 
-           . ').'
-        );
-
-    } elsif ((defined $error) and ($error ne '')) {
-        $irc->yield( privmsg => $channel => "$nick: WoT $error.");
-
-    } else {
-        $irc->yield( privmsg => $channel => "$nick: WoT did not return any site reputation.");
-    }
-
-    # Restart the lag_o_meter
-    $kernel->delay( 'lag_o_meter' => $LAG );
-
-    return;
 }
 
 sub wot {
@@ -1220,10 +1144,7 @@ sub search {
 sub check_if_bot {
     my ($object, $nick, $where, $command, $args) = @_;
 
-    my @bots = $CONF->param('bots');
-    my $bots = join('|', @bots );
-
-    if ($nick =~ /^(?:$bots)\b/i) {
+    if ( is_bot($CONF, $nick) ) {
         warn "Blocked";
         return 0;
     }
@@ -1242,3 +1163,13 @@ sub check_if_op {
     return 0;
   }
 }
+
+# Chomp to cope with Windows line endings
+
+sub superchomp {
+    my $string = shift;
+    return if (not defined $string);
+    $string =~ s/[\r\n]//g;
+    return $string;
+}
+
