@@ -30,6 +30,7 @@ use POE::Component::IRC::Plugin::Connector;
 use lib './lib';
 use config;
 use image;
+use mediawiki;
 use wot;
 use wolfram;
 use utility;
@@ -471,6 +472,30 @@ sub irc_public {
 # If response is a Wikipedia link, then do a 
 # Wikimedia lookup instead
 
+sub mediawiki {
+    my $request = shift;
+
+    if ((not defined $request) or ($request =~ /^\s*$/)) {
+        return "Wikipedia command should be followed by text to be searched";
+    }
+
+    my ($retcode, $response) = search('site:en.wikipedia.org ' . $request);
+
+    my $url     = $response->{'Url'};
+    my $title   = $response->{'Title'};
+    my $error   = $response->{'Error'};
+
+    unless (defined $url) {
+        if (defined $error) {
+            return "There were no search results - $error";
+        } else {
+            return "There were no search results!";
+        }
+    }
+    
+    my ($extract, $response) = mediawiki::lookup($url);
+}
+
 sub is_wikipedia {
     my ($request, $result) = @_;
 
@@ -624,86 +649,6 @@ sub get_data {
     }
 
 }
-
-sub mediawiki {
-    my $request = shift;
-
-    if ((not defined $request) or ($request =~ /^\s*$/)) {
-        return "Wikipedia command should be followed by text to be searched";
-    }
-
-    my ($retcode, $response) = search('site:en.wikipedia.org ' . $request);
-
-    my $url     = $response->{'Url'};
-    my $title   = $response->{'Title'};
-    my $error   = $response->{'Error'};
-
-    unless (defined $url) {
-        if (defined $error) {
-            return "There were no search results - $error";
-        } else {
-            return "There were no search results!";
-        }
-    }
-
-    my $apiurl = mediawiki_api_url($url);
-
-    use LWP::UserAgent;
-
-    my $ua = LWP::UserAgent->new;
-    $ua->timeout(20);
-    $ua->env_proxy;
-
-    my $req = HTTP::Request->new( GET => $apiurl );
-    my $response2 = $ua->request( $req );
-
-    use JSON;
-
-    my $ref;
-    eval { $ref = JSON::decode_json( $response2->{'_content'} ); };
-
-    if ( $@ ) {
-        warn "\n\n-------------- DEBUG ------------------\n";
-        warn "Wikipedia has returned a malformed JSON response\n";
-        warn "Query: $apiurl\n";
-        warn "Response: $@\n";
-
-        $response->{'Error'} = "Wikipedia returned $@";
-        return $response;
-    }
-
-    my $pageid = (keys %{ $ref->{'query'}->{'pages'} })[0];
-
-    my $extract = ($ref->{'query'}->{'pages'}->{$pageid}->{'extract'});
-    $extract =~ s/[\r\n]+/ /g;
-    $extract =~ s/[^[:ascii:]]//g;
-
-    return ($extract, $response);
-
-}
-
-sub mediawiki_api_url {
-    my $request = shift;
-
-    # https://en.wikipedia.org/wiki/Withdrawal_from_the_European_Union
-    my ($title) = $request =~ m/\/wiki\/(\w+)/;
-
-    use URI::URL;
-    my $url = new URI::URL $request;
-    my ($host, $scheme);
-
-    eval { $scheme = $url->scheme; };
-    warn "Scheme not found $@" if $@;
-
-    eval { $host = $url->host; };
-    warn "Host not found $@" if $@;
-
-    my $path = '/w/api.php?format=json&action=query&prop=extracts&exintro=&explaintext=&titles=';
-
-    my $apiurl = $scheme . '://' . $host . $path . $title;
-
-    return $apiurl;
-} 
 
 sub search {
     my $query = shift;
