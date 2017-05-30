@@ -27,12 +27,12 @@ sub lookup {
     $ua->env_proxy;
 
     my $req = HTTP::Request->new( GET => $apiurl );
-    my $response2 = $ua->request( $req );
+    my $res = $ua->request( $req );
 
     use JSON;
 
     my $ref;
-    eval { $ref = JSON::decode_json( $response2->{'_content'} ); };
+    eval { $ref = JSON::decode_json( $res->{'_content'} ); };
 
     my $response;
     if ( $@ ) {
