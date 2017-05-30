@@ -583,122 +583,6 @@ sub shorten {
     return $short;
 }
 
-sub magick_data {
-    my $file = shift;
-
-    use Graphics::Magick;
-    
-    my $img = Graphics::Magick->new;
-
-    my $status = $img->Read($file);
-    warn "$status" if "$status";
-
-    my ($width, $height, $quality, $type, $magick) = $img->Get(qw(width height quality type magick));
-    my ($lat, $lon) = exif_data($file);
-
-    my $imgdata = {
-        'width'     => $width,
-        'height'    => $height,
-        'type'      => $type,
-        'magick'    => $magick,
-        'quality'   => $quality,
-        'lat'       => $lat,
-        'long'      => $lon,
-    };
-
-    unlink($file) or warn "Unable to unlink $file: $!";
-
-    return $imgdata;
-}
-
-sub exif_data {
-    my $file = shift;
-
-    use Image::ExifTool;
-
-    my $exif = Image::ExifTool->new();
-    my $hash = $exif->ImageInfo($file);
-
-    my $lat = $exif->GetValue('GPSLatitude', 'PrintConv');
-    my $lon = $exif->GetValue('GPSLongitude', 'PrintConv');
-    my $pos = $exif->GetValue('GPSPosition', 'PrintConv');
-
-    if (defined $lat) {
-        $lat = latlong($lat);
-    }
-    if (defined $lon) {
-        $lon = latlong($lon);
-    }
-
-    return($lat, $lon);
-}
-
-sub gmap {
-    my $gps = shift;
-
-    # GPS 40°43'22.48"N 74°3'6.59"W.
-
-    $gps =~ s/\s+/+/g;
-
-    my $url = 'https://www.google.co.uk/maps/place/' .
-        $gps;
-
-    return $url;
-}
-
-sub latlong {
-    # Works for lat or long
-
-    my $lat = shift;
-
-    # See for format of coordinates
-    # https://support.google.com/maps/answer/18539?co=GENIE.Platform%3DDesktop&hl=en
-
-    # 40 deg 43' 22.48" N
-
-    $lat =~ s/\s+//g;
-    $lat =~ s/deg/°/;
-
-    # 40°43'22.48"N
-
-    return $lat;
-}
-
-sub download_file {
-    my $content = shift;
-
-    use File::Temp 'tempfile';
-    my ($fh, $file) = tempfile();
-
-    # Dump file
-    open( $fh, '>', $file) or
-        die "Cannot write to $file: $!";
-    binmode $fh;
-    print $fh $content;
-    close($fh) or die "Cannot close $file: $!";
-
-    return $file;
-}
-
-sub filename {
-    my $request = shift;
-
-    use URI::URL;
-    my $url = new URI::URL $request;
-    my $path;
-    eval { $path = $url->path; };
-    warn "Path not found $@" if $@;
-
-    # Remove path
-    $path =~ s/^.+\///g;
-
-    # Untaint
-    $path =~ s/[^a-z0-9\.\-]/_/g;
-    $path =~ s/_+/_/g;
-
-    return $path; 
-}
-
 sub get_data {
     my $query = shift;
 
@@ -725,19 +609,9 @@ sub get_data {
         my $title = decode_utf8( $response->header('Title') );
         return $title;
 
-    # Images handled by graphicsmagick
+    # Images 
     } elsif ($type =~ m/^image\/(?:jpg|jpeg|png|bmp|gif|jng|miff|pcx|pgm|pnm|ppm|tif|tiff)/i) {
-        my $saved   = download_file($response->decoded_content( charset => 'none' ));
-        my $imgdata = magick_data($saved);
-        my $file  = filename($query);
-        my $response = "$imgdata->{type} $imgdata->{magick} ($imgdata->{quality}) $imgdata->{width}x$imgdata->{height}";
-
-        if ((defined $imgdata->{lat}) and (defined $imgdata->{long})) {
-            # $response .= " :: GPS $imgdata->{lat} $imgdata->{long}";
-            my $gmap = gmap("$imgdata->{lat} $imgdata->{long}");
-            $response .= ' :: ' . $gmap;
-        }
-
+        my $response = image::lookup($response->decoded_content( charset => 'none' ), $query);
         return $response;
 
     # As yet unhandled file type
