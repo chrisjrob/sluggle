@@ -4,8 +4,7 @@ use strict;
 use Exporter;
 
 my @functions = qw(
-    bing
-    duckduckgo
+    lookup
 );
 
 our $VERSION     = 1.00;
@@ -15,6 +14,17 @@ our %EXPORT_TAGS = (
     DEFAULT => [@functions],
     ALL     => [@functions],
 );
+
+
+sub lookup {
+    my ($conf, $query) = @_;
+
+    # my ($retcode, $results) = bing($conf, $query);
+    my ($retcode, $results) = duckduckgo($conf, $query);
+    # my ($retcode, $results) = ddg($conf, $query);
+
+    return( $retcode, $results );
+}
 
 sub bing {
     my ($conf, $query) = @_;
