@@ -41,7 +41,12 @@ sub magick_data {
     my $img = Graphics::Magick->new;
 
     my $status = $img->Read($file);
-    warn "$status" if "$status";
+
+    # Stop processing if you can't read the file
+    # fixme: return undef here leaves an ugly
+    # http://tinyurl.com/wzrvx8q -   () x.
+    # response
+    return undef if "$status"; # Stop processing
 
     my ($width, $height, $quality, $type, $magick) = $img->Get(qw(width height quality type magick));
     my ($lat, $lon) = exif_data($file);
