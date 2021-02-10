@@ -626,7 +626,7 @@ sub get_data {
     my $ua = LWP::UserAgent->new;
     $ua->timeout(20);
     $ua->protocols_allowed( [ 'http', 'https'] );
-    #$ua->max_size(1024 * 1024 * 24);
+    $ua->max_size(1024 * 1024 * 48);
     $ua->agent('sluggle/0.1.1 https://github.com/chrisjrob/sluggle');
     $ua->env_proxy;
 
