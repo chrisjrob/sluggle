@@ -456,7 +456,7 @@ sub irc_public {
         /gx ) {
         warn "==================================== D ==================================";
         foreach my $request (@requests) {
-	    warn $request;
+            warn $request;
             my $response = find($request);
             $irc->yield( privmsg => $channel => "$nick: " . $response);
         }
@@ -626,28 +626,40 @@ sub get_data {
     my $ua = LWP::UserAgent->new;
     $ua->timeout(20);
     $ua->protocols_allowed( [ 'http', 'https'] );
-    $ua->max_size(1024 * 1024 * 48);
+    $ua->max_size(1024 * 1024 * 24);
     $ua->agent('sluggle/0.1.1 https://github.com/chrisjrob/sluggle');
     $ua->env_proxy;
 
     my $response = $ua->get($query);
 
     unless ($response->is_success) {
-	warn "UA Get failed with " . $response->status_line;
+        warn "UA Get failed with " . $response->status_line;
         return $response->status_line;
     }
 
-    warn "DEBUG: Status =" . $response->status_line;
-    warn "DEBUG: Content-Type =" . $response->header('content-type');
-    warn "DEBUG: Title =" . $response->header('Title');
-    warn "DEBUG: Decoded as =" . decode_utf8( $response->header('Title') );
+    if (1 == 0) {
+        warn "DEBUG: Status =" . $response->status_line;
+        warn "DEBUG: Content-Type =" . $response->header('content-type');
+        warn "DEBUG: Title =" . $response->header('Title');
+        warn "DEBUG: Decoded as =" . decode_utf8( $response->header('Title') );
+    }
 
     my $type     = $response->header('content-type');
 
     # Simple HTML page
     if ($type =~ m/^text\/html/i) {
+
         my $title = decode_utf8( $response->header('Title') );
-        return $title;
+
+        if (defined $title) {
+            return $title;
+
+        # For some reason title is often blank, even though it exists on teh page
+        # look deeper...
+        } else {
+            $response->content =~ /<title>(.+)<\/title>/i;
+            return $1;
+        }
 
     # Images 
     } elsif ($type =~ m/^image\/(?:jpg|jpeg|png|bmp|gif|jng|miff|pcx|pgm|pnm|ppm|tif|tiff)/i) {
