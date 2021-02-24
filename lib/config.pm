@@ -36,7 +36,7 @@ sub get_config {
 # Arguments:
 # - Reference to Config::Simple object.
 # Returns:
-# - Same Config::Simple refernece with any changes.
+# - Same Config::Simple reference with any changes.
 sub validate_config {
     my ($conf) = @_;
 
