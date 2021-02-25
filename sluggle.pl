@@ -448,9 +448,9 @@ sub irc_public {
     # Shorten links and return title
     } elsif ( (my @requests) = $what =~ /
         \b
-        (https?:\/\/[^ \(\)\[\]]+)
+        (https?:\/\/[^\s]+)
         (?:
-            [\s\(\)\[\]]
+            [\s]
             |
             $
         )
