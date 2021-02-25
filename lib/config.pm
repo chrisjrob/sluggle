@@ -3,9 +3,12 @@ package config;
 use strict;
 use Exporter;
 use Config::Simple;
+use URI;
+use Carp;
 
 my @functions = qw(
     get_config
+    validate_config
     add_channel
     remove_channel
     list_bots
@@ -25,6 +28,37 @@ our %EXPORT_TAGS = (
 sub get_config {
     my $file = shift;
     my $conf = new Config::Simple($file);
+
+    return $conf;
+}
+
+# Check our configuration is sensible and normalise things where possible.
+# Arguments:
+# - Reference to Config::Simple object.
+# Returns:
+# - Same Config::Simple reference with any changes.
+sub validate_config {
+    my ($conf) = @_;
+
+    if (defined $conf->param('twitter_frontend')) {
+        my $fe_uri = URI->new($conf->param('twitter_frontend'));
+
+        if (not defined $fe_uri or not $fe_uri->has_recognized_scheme) {
+            croak "twitter_frontend '" . $conf->param('twitter_frontend')
+                . "' doesn't look like a valid URI";
+        }
+
+        if ($fe_uri->scheme !~ /^https?$/) {
+            croak "twitter_frontend scheme must be 'http' or 'https'";
+        }
+
+        if ($fe_uri->path !~ m|/$|) {
+            carp "Appending '/' to your twitter_frontend '"
+                . $fe_uri->as_string . "'";
+            $fe_uri->path($fe_uri->path . '/');
+            $conf->param('twitter_frontend', $fe_uri->as_string);
+        }
+    }
 
     return $conf;
 }
