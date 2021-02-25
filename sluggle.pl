@@ -40,6 +40,7 @@ use vars qw( $CONF $LAG $REC );
 
 if ( (defined $ARGV[0]) and (-r $ARGV[0]) ) {
     $CONF = config::get_config($ARGV[0]);
+    $CONF = config::validate_config($CONF);
 } else {
     print "USAGE: sluggle.pl sluggle.conf\n";
     exit;
@@ -538,8 +539,19 @@ sub find {
             return $error;
         }
 
-        $url     = $request;
-        $title   = get_data($request);
+        $url = $request;
+
+        # If a Twitter frontend has been configured then just get the title
+        # (which will be the tweet text) from that frontend, as Twitter is
+        # hostile to non-JS bots and makes it hard to get any other way.
+        if ($url =~ m|^https?://twitter\.com/([^\s]+/status/[0-9]+)|i
+                and defined $CONF->param('twitter_frontend')) {
+            my $frontend = $CONF->param('twitter_frontend');
+            $title = get_data($frontend . $1);
+        } else {
+            $title = get_data($request);
+        }
+
         $shorten = shorten($url);
         $wot     = wot::lookup($CONF, $url);
 
