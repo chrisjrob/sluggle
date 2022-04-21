@@ -83,6 +83,7 @@ These two modes cannot be used simultaneously, owing to a limitation (possibly a
   * Net::WolframAlpha; 
   * POE::Component::IRC::Plugin::BotCommand
   * POE::Component::IRC::State
+  * POE::Component::IRC::SSLify
   * POE::Component::IRC
   * POE
   * Regexp::Common
@@ -97,11 +98,11 @@ These two modes cannot be used simultaneously, owing to a limitation (possibly a
 
  4. Obtain yourself a Wolfram Alpha API key, currently freely available for 2000 searches per month.
 
- 5. Rename `sluggle.conf.template` to something like `sluggle-freenode.conf` and update the contents see [Configuration](#configuration) above.
+ 5. Rename `sluggle.conf.template` to something like `sluggle-libera.conf` and update the contents see [Configuration](#configuration) above.
 
  6. Run sluggle.pl specifying config file:
 
 First argument is the configuration file:
 
-    $ ./sluggle.pl sluggle-freenode.conf
+    $ ./sluggle.pl sluggle-libera.conf
 
