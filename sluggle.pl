@@ -59,6 +59,9 @@ my $irc = POE::Component::IRC::State->spawn(
    nick     => $CONF->param('nickname'),
    ircname  => $CONF->param('ircname'),
    server   => $CONF->param('server'),
+   password => $CONF->param('nickpass'),
+   usessl   => $CONF->param('ssl'),
+   port     => $CONF->param('port')
 ) or die "Oh noooo! $!";
 
 # Commands
