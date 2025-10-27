@@ -16,85 +16,58 @@ our %EXPORT_TAGS = (
     ALL     => [@functions],
 );
 
+use WWW::WolframAlpha;
+use Text::Unaccent::PurePerl;
+
 sub lookup {
     my ($conf, $request) = @_;
 
-    if ((not defined $request) or ($request =~ /^\s*$/)) {
-        return "Command Wolfram should be followed by a request";
-    }
+    return "Command Wolfram should be followed by a request"
+        if not defined $request or $request =~ /^\s*$/;
 
-    use Net::WolframAlpha; 
-    use Text::Unaccent::PurePerl;
-
-    # Instantiate WA object with your appid.
-    my $wa = Net::WolframAlpha->new (
+    my $wa = WWW::WolframAlpha->new(
         appid => $conf->param('wolfram_appid')
     );
 
-    # Send any inputs paramters in input hash (unescaped).
-    my $query = $wa->query(
-        'input' =>  unac_string('utf-8',$request),
-        'scantimeout' => 3,
-    );
+    my $query = $wa->query({
+        input => unac_string('utf-8', $request),
+        scantimeout => 3,
+    });
 
     my $response;
 
     if ($query->success) {
+        my $pod = $query->pods->[0];
+        my $subpod = $pod->subpods->[0];
+        my $search_plaintext = utility::superchomp($subpod->plaintext);
 
-        # Interpretation
-        my $pod                 = $query->pods->[0];
-        my $subpod              = $pod->subpods->[0];
-        my $search_plaintext    = utility::superchomp( $subpod->plaintext );
+        $response = defined $search_plaintext
+            ? "Interpreted as $search_plaintext "
+            : "Unable to interpret request ";
 
-        if (defined $search_plaintext) {
-            $response = "Interpreted as $search_plaintext ";
-        } else {
-            $response = "Unable to interpret request ";
-        }
-
-        my ($result_title, $result_subtitle, $result_plaintext);
-
-        # Results
         $pod = $query->pods->[1];
-
-        if (defined $pod) {
-            $result_title        = $pod->title;
-            $subpod              = $pod->subpods->[0];
-            $response .= $result_title . ' ';
+        if ($pod) {
+            my $result_title = $pod->title;
+            my $subpod = $pod->subpods->[0];
+            my $result_plaintext = utility::superchomp($subpod->plaintext);
+            $response .= "$result_title $result_plaintext";
         }
 
-        if (defined $subpod) {
-            $result_subtitle     = $subpod->title;
-            $result_plaintext    = utility::superchomp( $subpod->plaintext );
-            $response .= $result_subtitle . ' '
-                    . $result_plaintext;
-        }
-
-    # No success, but no error either.
     } elsif (!$query->error) {
-        if ($query->didyoumeans->count) {
-            my $didyoumean = $query->didyoumeans->didyoumean->[0];
-            $response = 'Did you mean: ' . $didyoumean->text->{content};
+        if (my $dyms = $query->didyoumeans) {
+            $response = "Did you mean: " . $dyms->[0]->text;
         } else {
-            $response =  "No results.";
+            $response = "No results.";
         }
 
-    # Error contacting WA.
     } elsif ($wa->error) {
-        $response = "Net::WolframAlpha error: "
-                    . $wa->errmsg;
+        $response = "WolframAlpha error: " . $wa->errmsg;
 
-    # Error returned by WA.    
     } elsif ($query->error) {
-        $response = "WA error "
-                    . $query->error->code
-                    . ": "
-                    . $query->error->msg;
-
+        $response = "WA error " . $query->error->code . ": " . $query->error->msg;
     }
 
     $response =~ s/\s{2,}/ /g;
-
     return $response;
 }
 
